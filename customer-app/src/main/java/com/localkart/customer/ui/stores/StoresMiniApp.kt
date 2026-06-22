@@ -17,7 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.localkart.common.model.Store
 import com.localkart.customer.ui.common.*
 
@@ -88,18 +91,22 @@ private fun StoresHome(vm: StoresViewModel = viewModel(), onOpenStore: (Store) -
             vm.loading -> item { LoadingRow() }
             vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
             vm.stores.isEmpty() -> item { EmptyWithSeed("No stores nearby") { vm.reload() } }
-            else -> items(vm.stores) { s -> StoreCard(s.name, s.category, s.rating) { onOpenStore(s) } }
+            else -> items(vm.stores) { s -> StoreCard(s.name, s.category, s.rating, s.photoUrl) { onOpenStore(s) } }
         }
     }
 }
 
 @Composable
-private fun StoreCard(name: String, category: String, rating: Double = 4.5, onClick: () -> Unit = {}) {
+private fun StoreCard(name: String, category: String, rating: Double = 4.5, photoUrl: String = "", onClick: () -> Unit = {}) {
     ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clickable { onClick() }) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 4.dp) {
-                Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Storefront, null)
+            if (photoUrl.isNotBlank()) {
+                AsyncImage(photoUrl, name, Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
+            } else {
+                Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 4.dp) {
+                    Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Storefront, null)
+                    }
                 }
             }
             Spacer(Modifier.width(12.dp))

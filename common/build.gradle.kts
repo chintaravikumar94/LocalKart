@@ -23,6 +23,7 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     api("androidx.core:core-ktx:1.13.1")
     api("androidx.compose.ui:ui")
+    api("androidx.compose.foundation:foundation")
     api("androidx.compose.material3:material3")
     api("androidx.compose.material:material-icons-extended")
     api("androidx.compose.ui:ui-tooling-preview")

@@ -21,6 +21,7 @@ import kotlinx.coroutines.tasks.await
 object AuthManager {
 
     val currentUid: String? get() = Firebase.auth.currentUser?.uid
+    val currentName: String get() = Firebase.auth.currentUser?.displayName ?: "User"
     val isLoggedIn: Boolean get() = Firebase.auth.currentUser != null
 
     fun googleSignInIntent(context: Context, webClientId: String): Intent {

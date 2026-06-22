@@ -167,6 +167,91 @@ class FirestoreRepo {
     suspend fun saveFcmToken(uid: String, token: String) =
         db.collection("users").document(uid).update("fcmToken", token).await()
 
+    // ---- Photos ----
+    /** Sets the photo on the user doc and all stores/services they own. */
+    suspend fun updateOwnerPhoto(uid: String, url: String) {
+        runCatching { db.collection("users").document(uid).update("photoUrl", url).await() }
+        storesForOwner(uid).forEach {
+            runCatching { db.collection("stores").document(it.id).update("photoUrl", url).await() }
+        }
+        servicesForOwner(uid).forEach {
+            runCatching { db.collection("services").document(it.id).update("photoUrl", url).await() }
+        }
+    }
+
+    // ---- Reviews ----
+    suspend fun addReview(review: Review) {
+        db.collection("reviews").add(review).await()
+        recomputeRating(review.targetType, review.targetId)
+    }
+
+    suspend fun reviewsFor(targetType: String, targetId: String): List<Review> =
+        db.collection("reviews")
+            .whereEqualTo("targetType", targetType)
+            .whereEqualTo("targetId", targetId)
+            .get().await().toObjects<Review>().sortedByDescending { it.createdAt }
+
+    private suspend fun recomputeRating(targetType: String, targetId: String) {
+        val reviews = db.collection("reviews")
+            .whereEqualTo("targetType", targetType).whereEqualTo("targetId", targetId)
+            .get().await().toObjects<Review>()
+        if (reviews.isEmpty()) return
+        val avg = reviews.map { it.rating }.average()
+        val collection = if (targetType == "service") "services" else "stores"
+        runCatching {
+            db.collection(collection).document(targetId)
+                .update(mapOf("rating" to avg, "ratingCount" to reviews.size)).await()
+        }
+    }
+
+    // ---- Chat ----
+    /** Deterministic thread id so both sides resolve the same conversation. */
+    private fun threadId(customerUid: String, sellerUid: String) = "${customerUid}_${sellerUid}"
+
+    suspend fun openThread(
+        customerUid: String, customerName: String,
+        sellerUid: String, sellerName: String, storeId: String
+    ): String {
+        val id = threadId(customerUid, sellerUid)
+        val ref = db.collection("chatThreads").document(id)
+        if (!ref.get().await().exists()) {
+            ref.set(
+                ChatThread(
+                    customerUid = customerUid, customerName = customerName,
+                    sellerUid = sellerUid, sellerName = sellerName, storeId = storeId
+                )
+            ).await()
+        }
+        return id
+    }
+
+    suspend fun sendMessage(threadId: String, senderUid: String, text: String) {
+        val msg = ChatMessage(senderUid = senderUid, text = text)
+        db.collection("chatThreads").document(threadId).collection("messages").add(msg).await()
+        db.collection("chatThreads").document(threadId)
+            .update(mapOf("lastMessage" to text, "updatedAt" to com.google.firebase.Timestamp.now())).await()
+    }
+
+    /** Realtime stream of messages in a thread (oldest first). */
+    fun messagesFlow(threadId: String): kotlinx.coroutines.flow.Flow<List<ChatMessage>> =
+        kotlinx.coroutines.flow.callbackFlow {
+            val reg = db.collection("chatThreads").document(threadId).collection("messages")
+                .orderBy("createdAt")
+                .addSnapshotListener { snap, err ->
+                    if (err != null) { close(err); return@addSnapshotListener }
+                    trySend(snap?.toObjects(ChatMessage::class.java) ?: emptyList())
+                }
+            kotlinx.coroutines.channels.awaitClose { reg.remove() }
+        }
+
+    suspend fun threadsForSeller(sellerUid: String): List<ChatThread> =
+        db.collection("chatThreads").whereEqualTo("sellerUid", sellerUid)
+            .get().await().toObjects<ChatThread>().sortedByDescending { it.updatedAt }
+
+    suspend fun threadsForCustomer(customerUid: String): List<ChatThread> =
+        db.collection("chatThreads").whereEqualTo("customerUid", customerUid)
+            .get().await().toObjects<ChatThread>().sortedByDescending { it.updatedAt }
+
     // ---- Seller side ----
     suspend fun ordersForStore(storeId: String): List<Order> =
         db.collection("orders").whereEqualTo("storeId", storeId)

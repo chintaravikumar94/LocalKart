@@ -29,6 +29,10 @@ import com.localkart.customer.ui.common.LoadingRow
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StoreDetailScreen(store: Store, onBack: () -> Unit) {
+    var screen by remember { mutableStateOf("detail") }
+    if (screen == "reviews") { ReviewsScreen(store) { screen = "detail" }; return }
+    if (screen == "chat") { CustomerChatScreen(store) { screen = "detail" }; return }
+
     val repo = remember { FirestoreRepo() }
     val ctx = LocalContext.current
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
@@ -49,6 +53,10 @@ fun StoreDetailScreen(store: Store, onBack: () -> Unit) {
                 title = { Text(store.name, maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
+                },
+                actions = {
+                    IconButton(onClick = { screen = "chat" }) { Icon(Icons.Default.ChatBubbleOutline, "Chat") }
+                    IconButton(onClick = { screen = "reviews" }) { Icon(Icons.Default.Star, "Reviews") }
                 }
             )
         }
@@ -97,9 +105,17 @@ fun StoreDetailScreen(store: Store, onBack: () -> Unit) {
 @Composable
 private fun StoreHeader(store: Store) {
     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = RoundedCornerShape(16.dp), tonalElevation = 4.dp) {
-            Box(Modifier.size(72.dp), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Storefront, null, Modifier.size(36.dp))
+        if (store.photoUrl.isNotBlank()) {
+            coil.compose.AsyncImage(
+                store.photoUrl, store.name,
+                Modifier.size(72.dp).clip(RoundedCornerShape(16.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else {
+            Surface(shape = RoundedCornerShape(16.dp), tonalElevation = 4.dp) {
+                Box(Modifier.size(72.dp), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Storefront, null, Modifier.size(36.dp))
+                }
             }
         }
         Spacer(Modifier.width(16.dp))

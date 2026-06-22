@@ -36,7 +36,7 @@ fun ServiceProviderApp() {
                 ProviderTab.GROW -> GrowYourBusiness()
                 ProviderTab.JOBS -> RequestsScreen("Job Requests")
                 ProviderTab.BOOKINGS -> ProviderBookingsScreen()
-                ProviderTab.PROFILE -> ProfileWithIdCard("SVP-55821", "Ravikumar (Electrician)", approved = true, rating = 4.8)
+                ProviderTab.PROFILE -> SellerProfileScreen()
             }
         }
     }

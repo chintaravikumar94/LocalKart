@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -93,9 +94,17 @@ private fun ServicesHome(
 private fun ProviderCard(provider: ServiceProvider, onBook: () -> Unit, onRequest: () -> Unit) {
     ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(50), tonalElevation = 4.dp) {
-                Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Engineering, null) }
+            if (provider.photoUrl.isNotBlank()) {
+                coil.compose.AsyncImage(
+                    provider.photoUrl, provider.name,
+                    Modifier.size(56.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(50)),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Surface(shape = RoundedCornerShape(50), tonalElevation = 4.dp) {
+                    Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Engineering, null) }
+                }
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {

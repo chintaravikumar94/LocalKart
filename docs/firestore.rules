@@ -62,5 +62,19 @@ service cloud.firestore {
       allow read, update: if isOwner(resource.data.toUid);
       allow create: if isSignedIn();
     }
+
+    // Reviews: anyone can read; a signed-in customer can post their own.
+    match /reviews/{id} {
+      allow read: if true;
+      allow create: if isOwner(request.resource.data.customerUid);
+    }
+
+    // Chat: participants (any signed-in user for now) can read/write threads + messages.
+    match /chatThreads/{id} {
+      allow read, create, update: if isSignedIn();
+      match /messages/{mid} {
+        allow read, create: if isSignedIn();
+      }
+    }
   }
 }

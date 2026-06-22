@@ -38,11 +38,16 @@ fun StoreOwnerApp() {
                 ProductsManagerScreen(onBack = { overlay = null })
                 return@Box
             }
+            if (overlay == "chats") {
+                SellerChatsScreen(onBack = { overlay = null })
+                return@Box
+            }
             when (sel) {
                 OwnerTab.HOME -> OwnerHome(
                     onAction = { a ->
                         when (a) {
                             "My Products" -> overlay = "products"
+                            "Customer Chats" -> overlay = "chats"
                             "Orders" -> sel = OwnerTab.ORDERS
                             "Service Requests" -> sel = OwnerTab.REQUESTS
                             "Grow" -> sel = OwnerTab.GROW
@@ -54,7 +59,7 @@ fun StoreOwnerApp() {
                 OwnerTab.ORDERS -> OrdersScreen()
                 OwnerTab.REQUESTS -> RequestsScreen("Service Requests")
                 OwnerTab.APPTS -> AppointmentsScreen()
-                OwnerTab.SHOP -> ProfileWithIdCard("STR-10293", "Ravikumar Stores", approved = true, rating = 4.6)
+                OwnerTab.SHOP -> SellerProfileScreen()
             }
         }
     }

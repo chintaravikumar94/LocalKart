@@ -162,3 +162,33 @@ data class AppNotification(
     val read: Boolean = false,
     val createdAt: Timestamp = Timestamp.now()
 )
+
+data class Review(
+    @DocumentId val id: String = "",
+    val targetType: String = "store",   // store | service
+    val targetId: String = "",
+    val customerUid: String = "",
+    val customerName: String = "",
+    val rating: Int = 5,
+    val comment: String = "",
+    val createdAt: Timestamp = Timestamp.now()
+)
+
+/** A 1:1 conversation between a customer and a seller (deterministic id). */
+data class ChatThread(
+    @DocumentId val id: String = "",
+    val customerUid: String = "",
+    val customerName: String = "",
+    val sellerUid: String = "",
+    val sellerName: String = "",
+    val storeId: String = "",
+    val lastMessage: String = "",
+    val updatedAt: Timestamp = Timestamp.now()
+)
+
+data class ChatMessage(
+    @DocumentId val id: String = "",
+    val senderUid: String = "",
+    val text: String = "",
+    val createdAt: Timestamp = Timestamp.now()
+)

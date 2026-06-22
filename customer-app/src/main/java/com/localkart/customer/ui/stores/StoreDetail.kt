@@ -73,6 +73,7 @@ fun StoreDetailScreen(store: Store, onBack: () -> Unit) {
                 ) {
                     items(products) { p ->
                         ProductCard(p) {
+                            com.localkart.customer.ui.common.Cart.add(p)
                             Toast.makeText(ctx, "Added ${p.name} to cart", Toast.LENGTH_SHORT).show()
                         }
                     }

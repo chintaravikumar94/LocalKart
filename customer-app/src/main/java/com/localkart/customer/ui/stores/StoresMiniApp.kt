@@ -40,7 +40,12 @@ fun StoresMiniApp() {
                 StoreTab.values().forEach { t ->
                     NavigationBarItem(
                         selected = sel == t, onClick = { sel = t; detailStore = null },
-                        icon = { Icon(t.icon, t.label) }, label = { Text(t.label) }
+                        icon = {
+                            if (t == StoreTab.CART && Cart.count > 0) {
+                                BadgedBox(badge = { Badge { Text("${Cart.count}") } }) { Icon(t.icon, t.label) }
+                            } else Icon(t.icon, t.label)
+                        },
+                        label = { Text(t.label) }
                     )
                 }
             }

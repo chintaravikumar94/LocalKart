@@ -1,5 +1,6 @@
 package com.localkart.customer.ui.common
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 /** Small helper: clickable with no ripple bleed, used in tight rails. */
 fun Modifier.clickablePad(onClick: () -> Unit): Modifier = this.then(Modifier.clickable { onClick() })
@@ -73,24 +75,41 @@ fun ProductTile(name: String, price: String) {
     }
 }
 
-/** Flipkart-style cart with price summary. */
+/** Flipkart-style cart with live items, qty controls and place-order to Firestore. */
 @Composable
 fun CartScreen() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val repo = remember { com.localkart.common.repo.FirestoreRepo() }
+    var placing by remember { mutableStateOf(false) }
+
+    if (Cart.items.isEmpty()) {
+        Box(Modifier.fillMaxSize().padding(40.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.ShoppingCart, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.outline)
+                Spacer(Modifier.height(8.dp))
+                Text("Your cart is empty", style = MaterialTheme.typography.titleMedium)
+                Text("Add products from a store to get started", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        return
+    }
+
     Column(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.weight(1f)) {
-            item { SectionHeader("My Cart (3)") }
-            items((1..3).toList()) { i ->
+            item { SectionHeader("My Cart (${Cart.count})") }
+            items(Cart.items, key = { it.productId }) { line ->
                 ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Image, null, Modifier.size(48.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Cart item $i", fontWeight = FontWeight.SemiBold)
-                            Text("₹${i * 99}", color = MaterialTheme.colorScheme.primary)
+                            Text(line.name, fontWeight = FontWeight.SemiBold)
+                            Text("₹${line.price.toInt()}", color = MaterialTheme.colorScheme.primary)
                         }
-                        OutlinedButton(onClick = {}) { Text("−") }
-                        Text("  1  ")
-                        OutlinedButton(onClick = {}) { Text("+") }
+                        OutlinedButton(onClick = { Cart.setQty(line.productId, line.qty - 1) }) { Text("−") }
+                        Text("  ${line.qty}  ")
+                        OutlinedButton(onClick = { Cart.setQty(line.productId, line.qty + 1) }) { Text("+") }
                     }
                 }
             }
@@ -99,9 +118,31 @@ fun CartScreen() {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Total", style = MaterialTheme.typography.labelMedium)
-                    Text("₹594", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("₹${Cart.total.toInt()}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
-                Button(onClick = {}) { Text("Place Order") }
+                Button(
+                    enabled = !placing,
+                    onClick = {
+                        val uid = com.localkart.common.auth.AuthManager.currentUid
+                        if (uid == null) {
+                            Toast.makeText(ctx, "Please sign in again", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        scope.launch {
+                            placing = true
+                            val r = runCatching {
+                                repo.placeOrder(uid, Cart.storeId, Cart.items.toList(), Cart.total)
+                            }
+                            placing = false
+                            if (r.isSuccess) {
+                                Cart.clear()
+                                Toast.makeText(ctx, "Order placed! ID: ${r.getOrNull()}", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(ctx, "Order failed: ${r.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                ) { Text(if (placing) "Placing…" else "Place Order") }
             }
         }
     }

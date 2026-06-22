@@ -45,6 +45,23 @@ class FirestoreRepo {
         db.collection("growItems").get().await().toObjects<GrowItem>()
             .filter { it.targetRole == "all" || it.targetRole == role }
 
+    // ---- Orders ----
+    /** Creates an order doc and returns its id. */
+    suspend fun placeOrder(customerUid: String, storeId: String, items: List<CartItem>, total: Double): String {
+        val order = Order(
+            customerUid = customerUid,
+            storeId = storeId,
+            items = items,
+            total = total,
+            status = OrderStatus.PENDING
+        )
+        return db.collection("orders").add(order).await().id
+    }
+
+    suspend fun ordersForCustomer(customerUid: String): List<Order> =
+        db.collection("orders").whereEqualTo("customerUid", customerUid)
+            .orderBy("createdAt", Query.Direction.DESCENDING).get().await().toObjects()
+
     // ---- Seller side ----
     suspend fun ordersForStore(storeId: String): List<Order> =
         db.collection("orders").whereEqualTo("storeId", storeId)

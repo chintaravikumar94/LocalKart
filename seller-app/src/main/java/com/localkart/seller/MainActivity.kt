@@ -1,5 +1,7 @@
 package com.localkart.seller
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -38,6 +40,19 @@ class MainActivity : ComponentActivity() {
                         if (!signedIn) { user = null; checking = false }
                     }
                     onDispose { stop() }
+                }
+
+                // Notification permission (Android 13+) + register FCM token once signed in.
+                val notifPerm = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission()
+                ) { }
+                LaunchedEffect(user != null) {
+                    if (user != null) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notifPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                        com.localkart.common.notify.PushTokens.register()
+                    }
                 }
 
                 val webClientId = remember {

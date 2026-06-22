@@ -22,6 +22,7 @@ data class User(
     val role: UserRole = UserRole.CUSTOMER,
     val location: GeoPoint? = null,
     val address: String = "",
+    val fcmToken: String = "",
     val createdAt: Timestamp = Timestamp.now()
 )
 

@@ -1,18 +1,26 @@
 package com.localkart.seller.ui.store
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.localkart.common.model.Product
 
 /** Store owner's product manager: list, add, toggle stock, delete. */
@@ -62,8 +70,9 @@ fun ProductsManagerScreen(onBack: () -> Unit, vm: ProductsViewModel = viewModel(
 
     if (showAdd) {
         AddProductDialog(
+            saving = vm.saving,
             onDismiss = { showAdd = false },
-            onSave = { name, price, mrp, unit -> vm.add(name, price, mrp, unit); showAdd = false }
+            onSave = { name, price, mrp, unit, uri -> vm.add(name, price, mrp, unit, uri); showAdd = false }
         )
     }
 }
@@ -72,7 +81,12 @@ fun ProductsManagerScreen(onBack: () -> Unit, vm: ProductsViewModel = viewModel(
 private fun ProductManageRow(p: Product, vm: ProductsViewModel) {
     ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Image, null, Modifier.size(44.dp))
+            if (p.imageUrl.isNotBlank()) {
+                AsyncImage(p.imageUrl, p.name, Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop)
+            } else {
+                Icon(Icons.Default.Image, null, Modifier.size(44.dp))
+            }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(p.name, fontWeight = FontWeight.SemiBold)
@@ -89,18 +103,46 @@ private fun ProductManageRow(p: Product, vm: ProductsViewModel) {
 }
 
 @Composable
-private fun AddProductDialog(onDismiss: () -> Unit, onSave: (String, Double, Double, String) -> Unit) {
+private fun AddProductDialog(
+    saving: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String, Double, Double, String, Uri?) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var mrp by remember { mutableStateOf("") }
     var unit by remember { mutableStateOf("") }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
     val valid = name.isNotBlank() && price.toDoubleOrNull() != null
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) imageUri = uri
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add product") },
         text = {
             Column {
+                // Image picker preview
+                Box(
+                    Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp))
+                        .clickable { picker.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (imageUri != null) {
+                        AsyncImage(imageUri, "Selected", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    } else {
+                        Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxSize()) {
+                            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.AddAPhoto, null)
+                                Text("Tap to add photo", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
@@ -118,12 +160,12 @@ private fun AddProductDialog(onDismiss: () -> Unit, onSave: (String, Double, Dou
         },
         confirmButton = {
             TextButton(
-                enabled = valid,
+                enabled = valid && !saving,
                 onClick = {
                     onSave(name.trim(), price.toDouble(),
-                        mrp.toDoubleOrNull() ?: price.toDouble(), unit.trim())
+                        mrp.toDoubleOrNull() ?: price.toDouble(), unit.trim(), imageUri)
                 }
-            ) { Text("Save") }
+            ) { Text(if (saving) "Saving…" else "Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )

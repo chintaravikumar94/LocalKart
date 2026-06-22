@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,9 +53,16 @@ fun StoreDetailScreen(store: Store, onBack: () -> Unit) {
             )
         }
     ) { pad ->
+        var showAppt by remember { mutableStateOf(false) }
         Column(Modifier.padding(pad)) {
             StoreHeader(store)
-            HorizontalDivider()
+            OutlinedButton(
+                onClick = { showAppt = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            ) {
+                Icon(Icons.Default.Event, null); Spacer(Modifier.width(8.dp)); Text("Book appointment")
+            }
+            HorizontalDivider(Modifier.padding(top = 12.dp))
             Text(
                 "Products",
                 Modifier.padding(16.dp),
@@ -79,6 +87,9 @@ fun StoreDetailScreen(store: Store, onBack: () -> Unit) {
                     }
                 }
             }
+        }
+        if (showAppt) {
+            AppointmentDialog(store = store, onDismiss = { showAppt = false })
         }
     }
 }
@@ -110,9 +121,17 @@ private fun StoreHeader(store: Store) {
 private fun ProductCard(p: Product, onAdd: () -> Unit) {
     ElevatedCard(Modifier.padding(6.dp)) {
         Column(Modifier.padding(10.dp)) {
-            Surface(shape = RoundedCornerShape(8.dp), tonalElevation = 3.dp) {
-                Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Image, null)
+            if (p.imageUrl.isNotBlank()) {
+                coil.compose.AsyncImage(
+                    p.imageUrl, p.name,
+                    Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(8.dp)),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Surface(shape = RoundedCornerShape(8.dp), tonalElevation = 3.dp) {
+                    Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Image, null)
+                    }
                 }
             }
             Spacer(Modifier.height(6.dp))

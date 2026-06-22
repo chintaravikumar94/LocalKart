@@ -135,6 +135,38 @@ class FirestoreRepo {
     suspend fun updateRequestStatus(requestId: String, status: RequestStatus) =
         db.collection("serviceRequests").document(requestId).update("status", status.name).await()
 
+    // ---- Appointments ----
+    suspend fun createAppointment(customerUid: String, storeOrProviderId: String, purpose: String, scheduledAt: com.google.firebase.Timestamp): String {
+        val appt = Appointment(
+            customerUid = customerUid, storeOrProviderId = storeOrProviderId,
+            purpose = purpose, scheduledAt = scheduledAt, status = AppointmentStatus.NEW
+        )
+        return db.collection("appointments").add(appt).await().id
+    }
+
+    suspend fun appointmentsForCustomer(customerUid: String): List<Appointment> =
+        db.collection("appointments").whereEqualTo("customerUid", customerUid)
+            .get().await().toObjects<Appointment>().sortedByDescending { it.scheduledAt }
+
+    /** Appointments across every store owned by this seller (newest first). */
+    suspend fun appointmentsForOwner(ownerUid: String): List<Appointment> {
+        val ids = db.collection("stores").whereEqualTo("ownerUid", ownerUid)
+            .get().await().documents.map { it.id }
+        if (ids.isEmpty()) return emptyList()
+        val out = mutableListOf<Appointment>()
+        ids.chunked(10).forEach { chunk ->
+            out += db.collection("appointments").whereIn("storeOrProviderId", chunk).get().await().toObjects<Appointment>()
+        }
+        return out.sortedByDescending { it.scheduledAt }
+    }
+
+    suspend fun updateAppointmentStatus(id: String, status: AppointmentStatus) =
+        db.collection("appointments").document(id).update("status", status.name).await()
+
+    // ---- FCM token ----
+    suspend fun saveFcmToken(uid: String, token: String) =
+        db.collection("users").document(uid).update("fcmToken", token).await()
+
     // ---- Seller side ----
     suspend fun ordersForStore(storeId: String): List<Order> =
         db.collection("orders").whereEqualTo("storeId", storeId)

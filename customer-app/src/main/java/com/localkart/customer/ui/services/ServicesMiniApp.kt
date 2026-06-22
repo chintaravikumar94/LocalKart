@@ -170,7 +170,7 @@ private fun NearbyProviders(
 private fun MyActivity(vm: ActivityViewModel = viewModel()) {
     var tab by remember { mutableIntStateOf(1) }
     val tabs = listOf("Service Requests", "Bookings", "Appointments")
-    LaunchedEffect(tab) { if (tab == 0 || tab == 1) vm.load() }
+    LaunchedEffect(tab) { vm.load() }
     Column {
         TabRow(tab) {
             tabs.forEachIndexed { i, t -> Tab(tab == i, onClick = { tab = i }, text = { Text(t) }) }
@@ -201,8 +201,17 @@ private fun MyActivity(vm: ActivityViewModel = viewModel()) {
                     }
                 }
             }
-            else -> Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
-                Text("Appointments coming soon", style = MaterialTheme.typography.bodyMedium)
+            else -> when {
+                vm.loading -> LoadingRow()
+                vm.appointments.isEmpty() -> Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
+                    Text("No appointments yet. Book one from a store page.", style = MaterialTheme.typography.bodyMedium)
+                }
+                else -> LazyColumn {
+                    items(vm.appointments) { a ->
+                        ListRow(a.purpose.ifBlank { "Appointment" },
+                            "${a.status.name.lowercase().replaceFirstChar { it.uppercase() }} · ${formatSlot(a.scheduledAt)}")
+                    }
+                }
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.localkart.seller.ui.store
 
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -8,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.localkart.common.auth.AuthManager
 import com.localkart.common.model.Product
 import com.localkart.common.repo.FirestoreRepo
+import com.localkart.common.repo.StorageRepo
 import kotlinx.coroutines.launch
 
 class ProductsViewModel : ViewModel() {
@@ -37,15 +39,20 @@ class ProductsViewModel : ViewModel() {
         }
     }
 
-    fun add(name: String, price: Double, mrp: Double, unit: String) {
+    var saving by mutableStateOf(false); private set
+
+    fun add(name: String, price: Double, mrp: Double, unit: String, imageUri: Uri?) {
         val sid = storeId ?: return
         viewModelScope.launch {
+            saving = true
             runCatching {
+                val imageUrl = imageUri?.let { StorageRepo.uploadImage(it, "products") } ?: ""
                 repo.addProduct(
-                    Product(storeId = sid, name = name, category = "", price = price,
-                        mrp = mrp, unit = unit, inStock = true)
+                    Product(storeId = sid, name = name, category = "", imageUrl = imageUrl,
+                        price = price, mrp = mrp, unit = unit, inStock = true)
                 )
             }.onSuccess { load() }.onFailure { error = it.message }
+            saving = false
         }
     }
 

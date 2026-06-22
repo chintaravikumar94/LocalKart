@@ -149,11 +149,12 @@ fun ServiceRequestDialog(provider: ServiceProvider, onDismiss: () -> Unit) {
     )
 }
 
-/** Loads the signed-in customer's bookings + service requests for the My Activity tabs. */
+/** Loads the signed-in customer's bookings, requests + appointments for My Activity. */
 class ActivityViewModel : ViewModel() {
     private val repo = FirestoreRepo()
     var bookings by mutableStateOf<List<Booking>>(emptyList()); private set
     var requests by mutableStateOf<List<com.localkart.common.model.ServiceRequest>>(emptyList()); private set
+    var appointments by mutableStateOf<List<com.localkart.common.model.Appointment>>(emptyList()); private set
     var loading by mutableStateOf(false); private set
 
     fun load() {
@@ -163,6 +164,7 @@ class ActivityViewModel : ViewModel() {
             if (uid != null) {
                 runCatching { repo.bookingsForCustomer(uid) }.onSuccess { bookings = it }
                 runCatching { repo.serviceRequestsForCustomer(uid) }.onSuccess { requests = it }
+                runCatching { repo.appointmentsForCustomer(uid) }.onSuccess { appointments = it }
             }
             loading = false
         }

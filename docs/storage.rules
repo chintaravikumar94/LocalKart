@@ -1,0 +1,13 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Images (product photos, profile pics) are publicly readable so they show in
+    // listings; any signed-in user may upload. Tighten per-folder for production.
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024          // 5 MB max
+                   && request.resource.contentType.matches('image/.*'); // images only
+    }
+  }
+}

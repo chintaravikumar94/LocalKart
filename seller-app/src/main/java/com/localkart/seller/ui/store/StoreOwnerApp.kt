@@ -53,9 +53,7 @@ fun StoreOwnerApp() {
                 OwnerTab.GROW -> GrowYourBusiness()
                 OwnerTab.ORDERS -> OrdersScreen()
                 OwnerTab.REQUESTS -> RequestsScreen("Service Requests")
-                OwnerTab.APPTS -> StatListPage("Appointments",
-                    listOf("Total" to "30", "New" to "4", "Confirmed" to "12", "Done" to "14"),
-                    listOf("All", "New", "Confirmed", "Done", "Cancelled")) { "Scheduled slot" }
+                OwnerTab.APPTS -> AppointmentsScreen()
                 OwnerTab.SHOP -> ProfileWithIdCard("STR-10293", "Ravikumar Stores", approved = true, rating = 4.6)
             }
         }

@@ -228,13 +228,15 @@ function render() {
   // Grow
   document.getElementById("growRows").innerHTML = grow.map(g =>
     `<tr><td>${g.title}</td><td>${g.targetRole}</td><td>${g.ctaText || "-"}</td>
-      <td><button class="reject" onclick="del('growItems','${g.id}')">Delete</button></td></tr>`).join("") || emptyRow(4);
+      <td class="row-actions"><button class="mini" onclick="editGrow('${g.id}')">Edit</button>
+      <button class="reject" onclick="del('growItems','${g.id}')">Delete</button></td></tr>`).join("") || emptyRow(4);
 
   // Banners
   document.getElementById("bannerRows").innerHTML = banners.map(b =>
     `<tr><td>${img(b.imageUrl)} ${b.title}</td><td><span class="tag info">${b.audience || "customer"}</span></td><td>${b.order ?? "-"}</td><td>${b.active ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td>
-      <td class="row-actions"><button class="mini" onclick="toggleBanner('${b.id}',${!b.active})">${b.active ? "Disable" : "Enable"}</button>
-      <button class="reject" onclick="del('banners','${b.id}')">Delete</button></td></tr>`).join("") || emptyRow(4);
+      <td class="row-actions"><button class="mini" onclick="editBanner('${b.id}')">Edit</button>
+      <button class="mini" onclick="toggleBanner('${b.id}',${!b.active})">${b.active ? "Disable" : "Enable"}</button>
+      <button class="reject" onclick="del('banners','${b.id}')">Delete</button></td></tr>`).join("") || emptyRow(5);
 
   drawCharts();
 }
@@ -303,61 +305,84 @@ function modal(html) { document.getElementById("modalBox").innerHTML = html; doc
 function closeModal() { document.getElementById("modalBg").classList.remove("open"); }
 document.getElementById("modalBg").addEventListener("click", e => { if (e.target.id === "modalBg") closeModal(); });
 
-function openGrow() {
-  modal(`<h3>Add grow item</h3>
-    <label>Title</label><input id="g-title" placeholder="e.g. Featured listing">
-    <label>Description</label><input id="g-desc" placeholder="Short description">
-    <label>CTA text</label><input id="g-cta" placeholder="e.g. Boost">
-    <label>Target role</label><input id="g-role" placeholder="all | store_owner | service_provider" value="all">
-    <label>Image (optional)</label>
+let editGrowId = null;
+function editGrow(id) { openGrow(DATA.grow.find(x => x.id === id)); }
+function openGrow(g) {
+  editGrowId = g?.id || null;
+  const role = g?.targetRole || "all";
+  modal(`<h3>${g ? "Edit" : "Add"} grow item</h3>
+    <label>Title</label><input id="g-title" value="${g?.title || ""}" placeholder="e.g. Featured listing">
+    <label>Description</label><input id="g-desc" value="${g?.description || ""}" placeholder="Short description">
+    <label>CTA text</label><input id="g-cta" value="${g?.ctaText || ""}" placeholder="e.g. Boost">
+    <label>Target audience</label>
+    <select id="g-role">${opt("all", "All sellers", role)}${opt("store_owner", "Store owners", role)}${opt("service_provider", "Service providers", role)}</select>
+    <label>Image (optional)${g ? " — leave empty to keep current" : ""}</label>
     <input id="g-file" type="file" accept="image/*" onchange="previewFile('g-file','g-prev')">
-    <img id="g-prev" style="display:none;width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
+    <img id="g-prev" src="${g?.imageUrl || ""}" style="display:${g?.imageUrl ? "block" : "none"};width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="g-save" onclick="saveGrow()">Save</button></div>`);
 }
 async function saveGrow() {
   const title = val("g-title");
   if (!title) return toast("Title required", "bad");
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
-  const btn = document.getElementById("g-save"); if (btn) { btn.disabled = true; btn.textContent = "Uploading…"; }
+  const btn = document.getElementById("g-save"); if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
   try {
     const imageUrl = await uploadImage("g-file", "growItems");
-    await db.collection("growItems").add({
+    const data = {
       title, description: val("g-desc"), ctaText: val("g-cta"),
-      targetRole: val("g-role") || "all", imageUrl
-    });
-    toast("Grow item added", "ok"); closeModal(); await loadAll();
+      targetRole: document.getElementById("g-role")?.value || "all"
+    };
+    if (imageUrl) data.imageUrl = imageUrl;
+    if (editGrowId) {
+      await db.collection("growItems").doc(editGrowId).update(data);
+      toast("Grow item updated", "ok");
+    } else {
+      await db.collection("growItems").add({ ...data, imageUrl: imageUrl || "" });
+      toast("Grow item added", "ok");
+    }
+    closeModal(); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
 }
 
-function openBanner() {
-  modal(`<h3>Add banner</h3>
-    <label>Title</label><input id="b-title" placeholder="e.g. Diwali Sale">
+function opt(v, label, cur) { return `<option value="${v}" ${v === cur ? "selected" : ""}>${label}</option>`; }
+
+let editBannerId = null;
+function editBanner(id) { openBanner(DATA.banners.find(x => x.id === id)); }
+function openBanner(b) {
+  editBannerId = b?.id || null;
+  const aud = b?.audience || "customer";
+  modal(`<h3>${b ? "Edit" : "Add"} banner</h3>
+    <label>Title</label><input id="b-title" value="${b?.title || ""}" placeholder="e.g. Diwali Sale">
     <label>Show in app</label>
-    <select id="b-aud">
-      <option value="customer">Customer app</option>
-      <option value="seller">Seller app</option>
-      <option value="both">Both apps</option>
-    </select>
-    <label>Banner image</label>
+    <select id="b-aud">${opt("customer", "Customer app", aud)}${opt("seller", "Seller app", aud)}${opt("both", "Both apps", aud)}</select>
+    <label>Banner image ${b ? "(leave empty to keep current)" : ""}</label>
     <input id="b-file" type="file" accept="image/*" onchange="previewFile('b-file','b-prev')">
-    <img id="b-prev" style="display:none;width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
-    <label>Order</label><input id="b-order" type="number" value="1">
-    <label>Target (optional)</label><input id="b-target" placeholder="category or deep link">
+    <img id="b-prev" src="${b?.imageUrl || ""}" style="display:${b?.imageUrl ? "block" : "none"};width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
+    <label>Order</label><input id="b-order" type="number" value="${b?.order ?? 1}">
+    <label>Target (optional)</label><input id="b-target" value="${b?.target || ""}" placeholder="category or deep link">
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="b-save" onclick="saveBanner()">Save</button></div>`);
 }
 async function saveBanner() {
   const title = val("b-title");
   if (!title) return toast("Title required", "bad");
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
-  const btn = document.getElementById("b-save"); if (btn) { btn.disabled = true; btn.textContent = "Uploading…"; }
+  const btn = document.getElementById("b-save"); if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
   try {
     const imageUrl = await uploadImage("b-file", "banners");
-    await db.collection("banners").add({
-      title, imageUrl, target: val("b-target"),
+    const data = {
+      title, target: val("b-target"),
       audience: document.getElementById("b-aud")?.value || "customer",
-      order: parseInt(val("b-order") || "1", 10), active: true
-    });
-    toast("Banner added", "ok"); closeModal(); await loadAll();
+      order: parseInt(val("b-order") || "1", 10)
+    };
+    if (imageUrl) data.imageUrl = imageUrl;
+    if (editBannerId) {
+      await db.collection("banners").doc(editBannerId).update(data);
+      toast("Banner updated", "ok");
+    } else {
+      await db.collection("banners").add({ ...data, imageUrl: imageUrl || "", active: true });
+      toast("Banner added", "ok");
+    }
+    closeModal(); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
 }
 function val(id) { return (document.getElementById(id)?.value || "").trim(); }

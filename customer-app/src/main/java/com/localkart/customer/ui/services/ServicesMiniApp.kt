@@ -75,17 +75,28 @@ private fun ServicesHome(
     onRequest: (ServiceProvider) -> Unit
 ) {
     var radius by remember { mutableIntStateOf(10) }
+    var query by remember { mutableStateOf("") }
+    val results = vm.providers.filter {
+        query.isBlank() || it.name.contains(query, true) || it.category.contains(query, true)
+    }
     LazyColumn {
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
-        item { SearchBar("Search service") }
+        item { SearchField(query, { query = it }, "Search services & providers") }
         item { CategoryChips(serviceCategories, vm.category) { vm.select(it) } }
         item { LiveBannerSlider("customer", demoBanners) }
-        item { SectionHeader("Nearest ${if (vm.category=="all") "Providers" else vm.category.replaceFirstChar { it.uppercase() }}") }
+        item { SectionHeader(if (query.isNotBlank()) "Results for \"$query\""
+            else "Nearest ${if (vm.category=="all") "Providers" else vm.category.replaceFirstChar { it.uppercase() }}") }
         when {
             vm.loading -> item { LoadingRow() }
             vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
             vm.providers.isEmpty() -> item { EmptyWithSeed("No service providers nearby") { vm.reload() } }
-            else -> items(vm.providers) { p -> ProviderCard(p, onBook = { onBook(p) }, onRequest = { onRequest(p) }) }
+            results.isEmpty() -> item {
+                Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    Text("No matches for \"$query\"", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            else -> items(results) { p -> ProviderCard(p, onBook = { onBook(p) }, onRequest = { onRequest(p) }) }
         }
     }
 }

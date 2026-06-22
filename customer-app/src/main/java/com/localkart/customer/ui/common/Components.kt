@@ -9,6 +9,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -71,6 +72,36 @@ fun SearchBar(hint: String, onClick: () -> Unit = {}) {
             Icon(Icons.Default.Search, null)
             Spacer(Modifier.width(8.dp))
             Text(hint, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** Editable search field with live filtering + clear button. */
+@Composable
+fun SearchField(query: String, onQueryChange: (String) -> Unit, hint: String) {
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        tonalElevation = 3.dp,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Row(Modifier.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            androidx.compose.foundation.text.BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                modifier = Modifier.weight(1f).padding(14.dp),
+                decorationBox = { inner ->
+                    if (query.isEmpty()) Text(hint, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    inner()
+                }
+            )
+            if (query.isNotEmpty()) {
+                Icon(Icons.Default.Close, "Clear",
+                    Modifier.clickable { onQueryChange("") }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }

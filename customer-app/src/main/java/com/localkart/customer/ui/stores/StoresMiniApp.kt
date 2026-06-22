@@ -81,17 +81,28 @@ private val demoBanners = listOf(
 @Composable
 private fun StoresHome(vm: StoresViewModel = viewModel(), onOpenStore: (Store) -> Unit = {}) {
     var radius by remember { mutableIntStateOf(10) }
+    var query by remember { mutableStateOf("") }
+    val results = vm.stores.filter {
+        query.isBlank() || it.name.contains(query, true) || it.category.contains(query, true)
+    }
     LazyColumn {
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
-        item { SearchBar("Search shop") }
+        item { SearchField(query, { query = it }, "Search shops & categories") }
         item { CategoryChips(storeCategories, vm.category) { vm.select(it) } }
         item { LiveBannerSlider("customer", demoBanners) }
-        item { SectionHeader(if (vm.category == "all") "All Shops" else vm.category.replace('_',' ')) }
+        item { SectionHeader(if (query.isNotBlank()) "Results for \"$query\""
+            else if (vm.category == "all") "All Shops" else vm.category.replace('_',' ')) }
         when {
             vm.loading -> item { LoadingRow() }
             vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
             vm.stores.isEmpty() -> item { EmptyWithSeed("No stores nearby") { vm.reload() } }
-            else -> items(vm.stores) { s -> StoreCard(s.name, s.category, s.rating, s.photoUrl) { onOpenStore(s) } }
+            results.isEmpty() -> item {
+                Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    Text("No matches for \"$query\"", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            else -> items(results) { s -> StoreCard(s.name, s.category, s.rating, s.photoUrl) { onOpenStore(s) } }
         }
     }
 }

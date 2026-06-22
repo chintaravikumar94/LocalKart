@@ -67,6 +67,21 @@ class FirestoreRepo {
         db.collection("orders").whereEqualTo("storeId", storeId)
             .orderBy("createdAt", Query.Direction.DESCENDING).get().await().toObjects()
 
+    /** All orders across every store owned by this seller (sorted newest first, client-side). */
+    suspend fun ordersForOwner(ownerUid: String): List<Order> {
+        val storeIds = db.collection("stores").whereEqualTo("ownerUid", ownerUid)
+            .get().await().documents.map { it.id }
+        if (storeIds.isEmpty()) return emptyList()
+        val out = mutableListOf<Order>()
+        storeIds.chunked(10).forEach { chunk ->
+            out += db.collection("orders").whereIn("storeId", chunk).get().await().toObjects<Order>()
+        }
+        return out.sortedByDescending { it.createdAt }
+    }
+
+    suspend fun updateOrderStatus(orderId: String, status: OrderStatus) =
+        db.collection("orders").document(orderId).update("status", status.name).await()
+
     suspend fun requestsForProvider(providerId: String): List<ServiceRequest> =
         db.collection("serviceRequests").whereEqualTo("providerId", providerId)
             .orderBy("createdAt", Query.Direction.DESCENDING).get().await().toObjects()

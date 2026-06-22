@@ -36,9 +36,7 @@ fun StoreOwnerApp() {
             when (sel) {
                 OwnerTab.HOME -> OwnerHome()
                 OwnerTab.GROW -> GrowYourBusiness()
-                OwnerTab.ORDERS -> StatListPage("Orders",
-                    listOf("Orders" to "128", "Revenue" to "₹84k", "Pending" to "6", "Done" to "122"),
-                    listOf("All", "Pending", "Active", "Completed")) { "Placed · ₹${it*120}" }
+                OwnerTab.ORDERS -> OrdersScreen()
                 OwnerTab.REQUESTS -> StatListPage("Service Requests",
                     listOf("Total" to "42", "New" to "5", "Active" to "9", "Done" to "28"),
                     listOf("All", "New", "In progress", "Done", "Rejected")) { "Requested service detail" }

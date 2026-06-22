@@ -5,6 +5,9 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.firestore.ktx.toObjects
 import com.google.firebase.ktx.Firebase
 import com.localkart.common.model.*
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -233,16 +236,15 @@ class FirestoreRepo {
     }
 
     /** Realtime stream of messages in a thread (oldest first). */
-    fun messagesFlow(threadId: String): kotlinx.coroutines.flow.Flow<List<ChatMessage>> =
-        kotlinx.coroutines.flow.callbackFlow {
-            val reg = db.collection("chatThreads").document(threadId).collection("messages")
-                .orderBy("createdAt")
-                .addSnapshotListener { snap, err ->
-                    if (err != null) { close(err); return@addSnapshotListener }
-                    trySend(snap?.toObjects(ChatMessage::class.java) ?: emptyList())
-                }
-            kotlinx.coroutines.channels.awaitClose { reg.remove() }
-        }
+    fun messagesFlow(threadId: String): Flow<List<ChatMessage>> = callbackFlow {
+        val reg = db.collection("chatThreads").document(threadId).collection("messages")
+            .orderBy("createdAt")
+            .addSnapshotListener { snap, err ->
+                if (err != null) { close(err); return@addSnapshotListener }
+                trySend(snap?.toObjects(ChatMessage::class.java) ?: emptyList())
+            }
+        awaitClose { reg.remove() }
+    }
 
     suspend fun threadsForSeller(sellerUid: String): List<ChatThread> =
         db.collection("chatThreads").whereEqualTo("sellerUid", sellerUid)

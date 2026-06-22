@@ -5,8 +5,11 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
     function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    // Only the rating aggregate fields are being changed (used after a review is posted).
+    function onlyRatingChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'ratingCount']);
+    }
 
-    // Users manage their own profile; admins can read all.
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
       allow create: if isOwner(uid);
@@ -15,20 +18,21 @@ service cloud.firestore {
 
     match /admins/{uid} { allow read: if isOwner(uid); allow write: if false; }
 
-    // Public read of approved listings; owner/admin can write. Approval is admin-only.
     match /stores/{id} {
       allow read: if true;
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid
                     && request.resource.data.approved == false;
-      allow update: if isAdmin() || (isOwner(resource.data.ownerUid)
-                    && request.resource.data.approved == resource.data.approved);
+      allow update: if isAdmin()
+                    || (isOwner(resource.data.ownerUid) && request.resource.data.approved == resource.data.approved)
+                    || (isSignedIn() && onlyRatingChanged());
     }
     match /services/{id} {
       allow read: if true;
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid
                     && request.resource.data.approved == false;
-      allow update: if isAdmin() || (isOwner(resource.data.ownerUid)
-                    && request.resource.data.approved == resource.data.approved);
+      allow update: if isAdmin()
+                    || (isOwner(resource.data.ownerUid) && request.resource.data.approved == resource.data.approved)
+                    || (isSignedIn() && onlyRatingChanged());
     }
 
     match /products/{id} { allow read: if true; allow write: if isSignedIn(); }
@@ -36,7 +40,6 @@ service cloud.firestore {
     match /categories/{id} { allow read: if true; allow write: if isAdmin(); }
     match /growItems/{id} { allow read: if isSignedIn(); allow write: if isAdmin(); }
 
-    // Transactions readable by the customer and the involved seller; created by signed-in users.
     match /orders/{id} {
       allow read: if isSignedIn();
       allow create: if isOwner(request.resource.data.customerUid);
@@ -69,7 +72,7 @@ service cloud.firestore {
       allow create: if isOwner(request.resource.data.customerUid);
     }
 
-    // Chat: participants (any signed-in user for now) can read/write threads + messages.
+    // Chat: signed-in participants can read/write threads and their messages.
     match /chatThreads/{id} {
       allow read, create, update: if isSignedIn();
       match /messages/{mid} {

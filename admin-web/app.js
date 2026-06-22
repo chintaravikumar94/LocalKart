@@ -102,11 +102,16 @@ const DEMO = {
 };
 
 async function fetchCol(name, fallback) {
-  if (!LIVE) return fallback;
-  try { const s = await db.collection(name).limit(100).get(); return s.docs.map(d => d.data()); }
-  catch (e) { console.warn(name, e); return fallback; }
+  if (!LIVE) return fallback.map((d, i) => ({ id: `demo-${name}-${i}`, ...d }));
+  try {
+    const s = await db.collection(name).limit(200).get();
+    return s.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn(name, e); return fallback.map((d, i) => ({ id: `demo-${name}-${i}`, ...d })); }
 }
 const tag = ok => ok ? '<span class="tag ok">Approved</span>' : '<span class="tag wait">Pending</span>';
+
+// Holds the current pending list so approve/reject know the collection + id.
+let PENDING = [];
 
 async function loadAll() {
   const stores = await fetchCol("stores", DEMO.stores);
@@ -115,37 +120,50 @@ async function loadAll() {
   const grow = await fetchCol("growItems", DEMO.growItems);
   const banners = await fetchCol("banners", DEMO.banners);
 
-  const pending = [...stores, ...services].filter(x => !x.approved);
+  PENDING = [
+    ...stores.filter(x => !x.approved).map(x => ({ ...x, _col: "stores" })),
+    ...services.filter(x => !x.approved).map(x => ({ ...x, _col: "services" })),
+  ];
+
   document.getElementById("c-customers").textContent = LIVE ? customers.length : "50,00,000*";
   document.getElementById("c-stores").textContent = stores.length;
   document.getElementById("c-services").textContent = services.length;
-  document.getElementById("c-pending").textContent = pending.length;
+  document.getElementById("c-pending").textContent = PENDING.length;
 
-  const row = s => `<tr><td>${s.name}</td><td>${s.category||"-"}</td><td>${tag(s.approved)}</td></tr>`;
+  const svcNames = new Set(services.map(s => s.name));
   document.getElementById("recent").innerHTML =
-    [...stores, ...services].slice(0,6).map(s =>
-      `<tr><td>${s.name}</td><td>${s.rating!=null && s.category && DEMO.services.find(x=>x.name===s.name)?"Service":"Store"}</td><td>${s.category||"-"}</td><td>${tag(s.approved)}</td></tr>`).join("");
+    [...stores, ...services].slice(0, 6).map(s =>
+      `<tr><td>${s.name}</td><td>${svcNames.has(s.name) ? "Service" : "Store"}</td><td>${s.category || "-"}</td><td>${tag(s.approved)}</td></tr>`).join("");
 
   document.getElementById("storeRows").innerHTML = stores.map(s =>
-    `<tr><td>${s.name}</td><td>${s.category}</td><td>⭐ ${s.rating||0}</td><td>${tag(s.approved)}</td></tr>`).join("");
+    `<tr><td>${s.name}</td><td>${s.category}</td><td>⭐ ${(s.rating || 0).toFixed ? s.rating.toFixed(1) : s.rating}</td><td>${tag(s.approved)}</td></tr>`).join("");
   document.getElementById("svcRows").innerHTML = services.map(s =>
-    `<tr><td>${s.name}</td><td>${s.category}</td><td>⭐ ${s.rating||0}</td><td>${tag(s.approved)}</td></tr>`).join("");
+    `<tr><td>${s.name}</td><td>${s.category}</td><td>⭐ ${(s.rating || 0).toFixed ? s.rating.toFixed(1) : s.rating}</td><td>${tag(s.approved)}</td></tr>`).join("");
   document.getElementById("custRows").innerHTML = customers.map(c =>
-    `<tr><td>${c.name}</td><td>${c.email}</td><td>${c.address||"-"}</td></tr>`).join("");
+    `<tr><td>${c.name || "-"}</td><td>${c.email || "-"}</td><td>${c.address || "-"}</td></tr>`).join("");
   document.getElementById("growRows").innerHTML = grow.map(g =>
     `<tr><td>${g.title}</td><td>${g.targetRole}</td><td>${g.ctaText}</td></tr>`).join("");
   document.getElementById("bannerRows").innerHTML = banners.map(b =>
-    `<tr><td>${b.title}</td><td>${b.order}</td><td>${b.active?"Yes":"No"}</td></tr>`).join("");
+    `<tr><td>${b.title}</td><td>${b.order}</td><td>${b.active ? "Yes" : "No"}</td></tr>`).join("");
 
-  document.getElementById("approvalRows").innerHTML = pending.length ? pending.map((p,i) =>
-    `<tr><td>${p.name}</td><td>${p.category}</td><td>${p.category}</td>
+  document.getElementById("approvalRows").innerHTML = PENDING.length ? PENDING.map((p, i) =>
+    `<tr><td>${p.name}</td><td>${p._col === "services" ? "Service" : "Store"}</td><td>${p.category}</td>
       <td><button class="approve" onclick="approve(${i})">Approve</button>
           <button class="reject" onclick="reject(${i})">Reject</button></td></tr>`).join("")
     : `<tr><td colspan="4" style="color:var(--muted)">No pending approvals 🎉</td></tr>`;
 }
 
-function approve(){ alert("Wire to: db.collection('stores'|'services').doc(id).update({approved:true})"); }
-function reject(){ alert("Wire to: update({approved:false, rejected:true})"); }
+async function setApproval(i, approved) {
+  const p = PENDING[i];
+  if (!p) return;
+  if (!LIVE) { alert(`(demo) ${approved ? "Approved" : "Rejected"} ${p.name}. Paste your Firebase config in app.js to make this live.`); return; }
+  try {
+    await db.collection(p._col).doc(p.id).update({ approved });
+    await loadAll();
+  } catch (e) { alert("Update failed: " + e.message); }
+}
+function approve(i) { setApproval(i, true); }
+function reject(i) { setApproval(i, false); }
 
 // Keep session on reload
 if (LIVE) auth.onAuthStateChanged(async u => {

@@ -26,12 +26,10 @@ fun StoreOwnerApp() {
     var sel by remember { mutableStateOf(OwnerTab.HOME) }
     var overlay by remember { mutableStateOf<String?>(null) }
     Scaffold(bottomBar = {
-        NavigationBar {
-            OwnerTab.values().forEach { t ->
-                NavigationBarItem(sel == t, onClick = { sel = t; overlay = null },
-                    icon = { Icon(t.icon, t.label) }, label = { Text(t.label) })
-            }
-        }
+        com.localkart.common.ui.ProBottomBar(
+            items = OwnerTab.values().map { it.label to it.icon },
+            selected = sel.ordinal
+        ) { i -> sel = OwnerTab.values()[i]; overlay = null }
     }) { pad ->
         Box(Modifier.padding(pad)) {
             if (overlay == "products") {

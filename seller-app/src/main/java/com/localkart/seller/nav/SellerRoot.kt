@@ -40,6 +40,12 @@ fun SellerRoot(role: UserRole) {
 
     var current by remember { mutableStateOf(if (showStore) "store" else "provider") }
     var overlay by remember { mutableStateOf<String?>(null) } // "more" | "notifications" | null
+    var unread by remember { mutableIntStateOf(0) }
+    LaunchedEffect(overlay) {
+        val uid = com.localkart.common.auth.AuthManager.currentUid
+        if (uid != null) runCatching { com.localkart.common.repo.FirestoreRepo().notificationsFor(uid) }
+            .onSuccess { list -> unread = list.count { !it.read } }
+    }
 
     val selectedKey = if (overlay == "more") "more" else current
     val selectedPill = keys.indexOf(selectedKey).coerceAtLeast(0)
@@ -55,7 +61,13 @@ fun SellerRoot(role: UserRole) {
                         Text("LocalKart Seller", style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
                         Spacer(Modifier.weight(1f))
-                        BadgedBox(badge = { Badge { Text("2") } }) {
+                        if (unread > 0) {
+                            BadgedBox(badge = { Badge { Text("$unread") } }) {
+                                IconButton(onClick = { overlay = "notifications" }) {
+                                    Icon(Icons.Default.Notifications, "Notifications")
+                                }
+                            }
+                        } else {
                             IconButton(onClick = { overlay = "notifications" }) {
                                 Icon(Icons.Default.Notifications, "Notifications")
                             }

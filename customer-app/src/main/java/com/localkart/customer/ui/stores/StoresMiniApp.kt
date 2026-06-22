@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.localkart.common.model.Store
+import com.localkart.common.ui.ProBottomBar
 import com.localkart.customer.ui.common.*
 
 /** Bottom nav for the Local Stores mini-app: Home | Category | Nearby Stores | Account | Cart */

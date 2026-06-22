@@ -27,6 +27,12 @@ import com.localkart.customer.ui.stores.StoresMiniApp
 fun CustomerRoot() {
     var tab by remember { mutableIntStateOf(1) }              // 1 = Stores, 2 = Services
     var overlay by remember { mutableStateOf<String?>(null) } // "more" | "notifications" | null
+    var unread by remember { mutableIntStateOf(0) }
+    LaunchedEffect(overlay) {
+        val uid = com.localkart.common.auth.AuthManager.currentUid
+        if (uid != null) runCatching { com.localkart.common.repo.FirestoreRepo().notificationsFor(uid) }
+            .onSuccess { list -> unread = list.count { !it.read } }
+    }
 
     val pills = listOf(
         "More" to Icons.Default.MoreHoriz,
@@ -51,7 +57,13 @@ fun CustomerRoot() {
                         Text("LocalKart", style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
                         Spacer(Modifier.weight(1f))
-                        BadgedBox(badge = { Badge { Text("3") } }) {
+                        if (unread > 0) {
+                            BadgedBox(badge = { Badge { Text("$unread") } }) {
+                                IconButton(onClick = { overlay = "notifications" }) {
+                                    Icon(Icons.Default.Notifications, "Notifications")
+                                }
+                            }
+                        } else {
                             IconButton(onClick = { overlay = "notifications" }) {
                                 Icon(Icons.Default.Notifications, "Notifications")
                             }

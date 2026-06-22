@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.localkart.common.model.ServiceProvider
+import com.localkart.common.ui.ProBottomBar
 import com.localkart.customer.ui.common.*
 
 /** Bottom nav: Home | Category | Nearby Service Providers | My Activity */
@@ -33,12 +34,10 @@ fun ServicesMiniApp() {
     var requestProvider by remember { mutableStateOf<ServiceProvider?>(null) }
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                SvcTab.values().forEach { t ->
-                    NavigationBarItem(sel == t, onClick = { sel = t },
-                        icon = { Icon(t.icon, t.label) }, label = { Text(t.label) })
-                }
-            }
+            ProBottomBar(
+                items = SvcTab.values().map { it.label to it.icon },
+                selected = sel.ordinal
+            ) { i -> sel = SvcTab.values()[i] }
         }
     ) { pad ->
         Box(Modifier.padding(pad)) {

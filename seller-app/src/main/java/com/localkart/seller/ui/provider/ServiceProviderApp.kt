@@ -23,12 +23,10 @@ private enum class ProviderTab(val label: String, val icon: ImageVector) {
 fun ServiceProviderApp() {
     var sel by remember { mutableStateOf(ProviderTab.HOME) }
     Scaffold(bottomBar = {
-        NavigationBar {
-            ProviderTab.values().forEach { t ->
-                NavigationBarItem(sel == t, onClick = { sel = t },
-                    icon = { Icon(t.icon, t.label) }, label = { Text(t.label) })
-            }
-        }
+        com.localkart.common.ui.ProBottomBar(
+            items = ProviderTab.values().map { it.label to it.icon },
+            selected = sel.ordinal
+        ) { i -> sel = ProviderTab.values()[i] }
     }) { pad ->
         Box(Modifier.padding(pad)) {
             when (sel) {

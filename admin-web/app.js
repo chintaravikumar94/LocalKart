@@ -4,12 +4,12 @@
  * 3. Serve locally:  npx serve .   (or any static host / Firebase Hosting).
  */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyC4h_btIhf5cGkMFm2N92j8RsdBfNt7DZY",
+  authDomain: "localkart-7dfb4.firebaseapp.com",
+  projectId: "localkart-7dfb4",
+  storageBucket: "localkart-7dfb4.firebasestorage.app",
+  messagingSenderId: "537191050226",
+  appId: "1:537191050226:web:f4215514741ee93cbb196b"
 };
 
 let db = null, auth = null, LIVE = false;

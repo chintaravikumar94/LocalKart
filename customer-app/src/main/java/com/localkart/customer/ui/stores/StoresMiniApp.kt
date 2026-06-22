@@ -39,19 +39,11 @@ fun StoresMiniApp() {
     var detailStore by remember { mutableStateOf<Store?>(null) }
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                StoreTab.values().forEach { t ->
-                    NavigationBarItem(
-                        selected = sel == t, onClick = { sel = t; detailStore = null },
-                        icon = {
-                            if (t == StoreTab.CART && Cart.count > 0) {
-                                BadgedBox(badge = { Badge { Text("${Cart.count}") } }) { Icon(t.icon, t.label) }
-                            } else Icon(t.icon, t.label)
-                        },
-                        label = { Text(t.label) }
-                    )
-                }
-            }
+            ProBottomBar(
+                items = StoreTab.values().map { it.label to it.icon },
+                selected = sel.ordinal,
+                badges = if (Cart.count > 0) mapOf(StoreTab.CART.ordinal to Cart.count) else emptyMap()
+            ) { i -> sel = StoreTab.values()[i]; detailStore = null }
         }
     ) { pad ->
         Box(Modifier.padding(pad)) {
@@ -82,33 +74,45 @@ private val demoBanners = listOf(
 private fun StoresHome(vm: StoresViewModel = viewModel(), onOpenStore: (Store) -> Unit = {}) {
     var radius by remember { mutableIntStateOf(10) }
     var query by remember { mutableStateOf("") }
-    val results = vm.stores.filter {
-        query.isBlank() || it.name.contains(query, true) || it.category.contains(query, true)
-    }
+    val user = rememberUserLocation()
+
+    // search filter -> attach distance -> radius filter -> sort by distance
+    val results = vm.stores
+        .filter { query.isBlank() || it.name.contains(query, true) || it.category.contains(query, true) }
+        .map { s ->
+            val d = if (user.hasLocation && s.location != null)
+                com.localkart.common.util.LocationUtil.distanceKm(user.lat!!, user.lng!!, s.location!!.latitude, s.location!!.longitude)
+            else null
+            s to d
+        }
+        .filter { (_, d) -> d == null || d <= radius }
+        .sortedBy { it.second ?: Double.MAX_VALUE }
+
     LazyColumn {
-        item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
+        item { LocationBar(user.area, radius, {}, { radius = it }) }
         item { SearchField(query, { query = it }, "Search shops & categories") }
         item { CategoryChips(storeCategories, vm.category) { vm.select(it) } }
         item { LiveBannerSlider("customer", demoBanners) }
         item { SectionHeader(if (query.isNotBlank()) "Results for \"$query\""
-            else if (vm.category == "all") "All Shops" else vm.category.replace('_',' ')) }
+            else if (vm.category == "all") "Shops within $radius km" else vm.category.replace('_',' ')) }
         when {
             vm.loading -> item { LoadingRow() }
             vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
             vm.stores.isEmpty() -> item { EmptyWithSeed("No stores nearby") { vm.reload() } }
             results.isEmpty() -> item {
                 Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                    Text("No matches for \"$query\"", style = MaterialTheme.typography.bodyMedium,
+                    Text(if (query.isNotBlank()) "No matches for \"$query\"" else "No stores within $radius km",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            else -> items(results) { s -> StoreCard(s.name, s.category, s.rating, s.photoUrl) { onOpenStore(s) } }
+            else -> items(results) { (s, d) -> StoreCard(s.name, s.category, s.rating, s.photoUrl, d) { onOpenStore(s) } }
         }
     }
 }
 
 @Composable
-private fun StoreCard(name: String, category: String, rating: Double = 4.5, photoUrl: String = "", onClick: () -> Unit = {}) {
+private fun StoreCard(name: String, category: String, rating: Double = 4.5, photoUrl: String = "", distanceKm: Double? = null, onClick: () -> Unit = {}) {
     ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clickable { onClick() }) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (photoUrl.isNotBlank()) {
@@ -126,7 +130,8 @@ private fun StoreCard(name: String, category: String, rating: Double = 4.5, phot
                 Text(category.replace('_',' '), style = MaterialTheme.typography.bodySmall)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Star, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
-                    Text(" $rating · 1.2 km · Open", style = MaterialTheme.typography.labelSmall)
+                    Text(" $rating" + (distanceKm?.let { " · ${"%.1f".format(it)} km" } ?: "") + " · Open",
+                        style = MaterialTheme.typography.labelSmall)
                 }
             }
             Icon(Icons.Default.ChevronRight, null)

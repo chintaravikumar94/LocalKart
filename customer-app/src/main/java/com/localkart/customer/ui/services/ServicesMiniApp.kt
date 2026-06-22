@@ -76,33 +76,44 @@ private fun ServicesHome(
 ) {
     var radius by remember { mutableIntStateOf(10) }
     var query by remember { mutableStateOf("") }
-    val results = vm.providers.filter {
-        query.isBlank() || it.name.contains(query, true) || it.category.contains(query, true)
-    }
+    val user = rememberUserLocation()
+
+    val results = vm.providers
+        .filter { query.isBlank() || it.name.contains(query, true) || it.category.contains(query, true) }
+        .map { p ->
+            val d = if (user.hasLocation && p.location != null)
+                com.localkart.common.util.LocationUtil.distanceKm(user.lat!!, user.lng!!, p.location!!.latitude, p.location!!.longitude)
+            else null
+            p to d
+        }
+        .filter { (_, d) -> d == null || d <= radius }
+        .sortedBy { it.second ?: Double.MAX_VALUE }
+
     LazyColumn {
-        item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
+        item { LocationBar(user.area, radius, {}, { radius = it }) }
         item { SearchField(query, { query = it }, "Search services & providers") }
         item { CategoryChips(serviceCategories, vm.category) { vm.select(it) } }
         item { LiveBannerSlider("customer", demoBanners) }
         item { SectionHeader(if (query.isNotBlank()) "Results for \"$query\""
-            else "Nearest ${if (vm.category=="all") "Providers" else vm.category.replaceFirstChar { it.uppercase() }}") }
+            else "Providers within $radius km") }
         when {
             vm.loading -> item { LoadingRow() }
             vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
             vm.providers.isEmpty() -> item { EmptyWithSeed("No service providers nearby") { vm.reload() } }
             results.isEmpty() -> item {
                 Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                    Text("No matches for \"$query\"", style = MaterialTheme.typography.bodyMedium,
+                    Text(if (query.isNotBlank()) "No matches for \"$query\"" else "No providers within $radius km",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            else -> items(results) { p -> ProviderCard(p, onBook = { onBook(p) }, onRequest = { onRequest(p) }) }
+            else -> items(results) { (p, d) -> ProviderCard(p, d, onBook = { onBook(p) }, onRequest = { onRequest(p) }) }
         }
     }
 }
 
 @Composable
-private fun ProviderCard(provider: ServiceProvider, onBook: () -> Unit, onRequest: () -> Unit) {
+private fun ProviderCard(provider: ServiceProvider, distanceKm: Double? = null, onBook: () -> Unit, onRequest: () -> Unit) {
     ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (provider.photoUrl.isNotBlank()) {
@@ -123,7 +134,8 @@ private fun ProviderCard(provider: ServiceProvider, onBook: () -> Unit, onReques
                 Text(provider.category.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodySmall)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Star, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
-                    Text(" ${provider.rating} · ${if (provider.pricePerVisit > 0) "₹${provider.pricePerVisit.toInt()}/visit · " else ""}${if (provider.available) "Available" else "Busy"}",
+                    Text(" ${provider.rating}" + (distanceKm?.let { " · ${"%.1f".format(it)} km" } ?: "") +
+                        " · ${if (provider.pricePerVisit > 0) "₹${provider.pricePerVisit.toInt()}/visit · " else ""}${if (provider.available) "Available" else "Busy"}",
                         style = MaterialTheme.typography.labelSmall)
                 }
             }

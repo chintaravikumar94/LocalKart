@@ -107,6 +107,34 @@ class FirestoreRepo {
     suspend fun updateBookingStatus(bookingId: String, status: BookingStatus) =
         db.collection("bookings").document(bookingId).update("status", status.name).await()
 
+    // ---- Service requests (job requests) ----
+    suspend fun createServiceRequest(customerUid: String, providerId: String, title: String, details: String): String {
+        val req = ServiceRequest(
+            customerUid = customerUid, providerId = providerId,
+            title = title, details = details, status = RequestStatus.NEW
+        )
+        return db.collection("serviceRequests").add(req).await().id
+    }
+
+    suspend fun serviceRequestsForCustomer(customerUid: String): List<ServiceRequest> =
+        db.collection("serviceRequests").whereEqualTo("customerUid", customerUid)
+            .get().await().toObjects<ServiceRequest>().sortedByDescending { it.createdAt }
+
+    /** All service requests across every service this seller owns (newest first). */
+    suspend fun serviceRequestsForOwner(ownerUid: String): List<ServiceRequest> {
+        val providerIds = db.collection("services").whereEqualTo("ownerUid", ownerUid)
+            .get().await().documents.map { it.id }
+        if (providerIds.isEmpty()) return emptyList()
+        val out = mutableListOf<ServiceRequest>()
+        providerIds.chunked(10).forEach { chunk ->
+            out += db.collection("serviceRequests").whereIn("providerId", chunk).get().await().toObjects<ServiceRequest>()
+        }
+        return out.sortedByDescending { it.createdAt }
+    }
+
+    suspend fun updateRequestStatus(requestId: String, status: RequestStatus) =
+        db.collection("serviceRequests").document(requestId).update("status", status.name).await()
+
     // ---- Seller side ----
     suspend fun ordersForStore(storeId: String): List<Order> =
         db.collection("orders").whereEqualTo("storeId", storeId)

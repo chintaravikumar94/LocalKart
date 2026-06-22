@@ -34,9 +34,7 @@ fun ServiceProviderApp() {
             when (sel) {
                 ProviderTab.HOME -> ProviderHome()
                 ProviderTab.GROW -> GrowYourBusiness()
-                ProviderTab.JOBS -> StatListPage("Job Requests",
-                    listOf("Total" to "57", "New" to "6", "Active" to "11", "Done" to "40"),
-                    listOf("All", "New", "Active", "Done", "Declined")) { "Job detail & location" }
+                ProviderTab.JOBS -> RequestsScreen("Job Requests")
                 ProviderTab.BOOKINGS -> ProviderBookingsScreen()
                 ProviderTab.PROFILE -> ProfileWithIdCard("SVP-55821", "Ravikumar (Electrician)", approved = true, rating = 4.8)
             }

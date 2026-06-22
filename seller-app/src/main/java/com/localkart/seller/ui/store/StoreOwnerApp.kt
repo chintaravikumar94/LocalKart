@@ -52,9 +52,7 @@ fun StoreOwnerApp() {
                 )
                 OwnerTab.GROW -> GrowYourBusiness()
                 OwnerTab.ORDERS -> OrdersScreen()
-                OwnerTab.REQUESTS -> StatListPage("Service Requests",
-                    listOf("Total" to "42", "New" to "5", "Active" to "9", "Done" to "28"),
-                    listOf("All", "New", "In progress", "Done", "Rejected")) { "Requested service detail" }
+                OwnerTab.REQUESTS -> RequestsScreen("Service Requests")
                 OwnerTab.APPTS -> StatListPage("Appointments",
                     listOf("Total" to "30", "New" to "4", "Confirmed" to "12", "Done" to "14"),
                     listOf("All", "New", "Confirmed", "Done", "Cancelled")) { "Scheduled slot" }

@@ -29,6 +29,7 @@ private enum class SvcTab(val label: String, val icon: ImageVector) {
 fun ServicesMiniApp() {
     var sel by remember { mutableStateOf(SvcTab.HOME) }
     var bookingProvider by remember { mutableStateOf<ServiceProvider?>(null) }
+    var requestProvider by remember { mutableStateOf<ServiceProvider?>(null) }
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -41,9 +42,9 @@ fun ServicesMiniApp() {
     ) { pad ->
         Box(Modifier.padding(pad)) {
             when (sel) {
-                SvcTab.HOME -> ServicesHome(onBook = { bookingProvider = it })
+                SvcTab.HOME -> ServicesHome(onBook = { bookingProvider = it }, onRequest = { requestProvider = it })
                 SvcTab.CATEGORY -> ServicesCategory()
-                SvcTab.NEARBY -> NearbyProviders(onBook = { bookingProvider = it })
+                SvcTab.NEARBY -> NearbyProviders(onBook = { bookingProvider = it }, onRequest = { requestProvider = it })
                 SvcTab.ACTIVITY -> MyActivity()
             }
         }
@@ -51,6 +52,9 @@ fun ServicesMiniApp() {
 
     bookingProvider?.let { provider ->
         BookingDialog(provider = provider, onDismiss = { bookingProvider = null })
+    }
+    requestProvider?.let { provider ->
+        ServiceRequestDialog(provider = provider, onDismiss = { requestProvider = null })
     }
 }
 
@@ -64,7 +68,11 @@ private val demoBanners = listOf(
 )
 
 @Composable
-private fun ServicesHome(vm: ServicesViewModel = viewModel(), onBook: (ServiceProvider) -> Unit) {
+private fun ServicesHome(
+    vm: ServicesViewModel = viewModel(),
+    onBook: (ServiceProvider) -> Unit,
+    onRequest: (ServiceProvider) -> Unit
+) {
     var radius by remember { mutableIntStateOf(10) }
     LazyColumn {
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
@@ -76,13 +84,13 @@ private fun ServicesHome(vm: ServicesViewModel = viewModel(), onBook: (ServicePr
             vm.loading -> item { LoadingRow() }
             vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
             vm.providers.isEmpty() -> item { EmptyWithSeed("No service providers nearby") { vm.reload() } }
-            else -> items(vm.providers) { p -> ProviderCard(p) { onBook(p) } }
+            else -> items(vm.providers) { p -> ProviderCard(p, onBook = { onBook(p) }, onRequest = { onRequest(p) }) }
         }
     }
 }
 
 @Composable
-private fun ProviderCard(provider: ServiceProvider, onBook: () -> Unit) {
+private fun ProviderCard(provider: ServiceProvider, onBook: () -> Unit, onRequest: () -> Unit) {
     ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(50), tonalElevation = 4.dp) {
@@ -99,7 +107,10 @@ private fun ProviderCard(provider: ServiceProvider, onBook: () -> Unit) {
                         style = MaterialTheme.typography.labelSmall)
                 }
             }
-            Button(onClick = onBook, enabled = provider.available) { Text("Book") }
+            Column(horizontalAlignment = Alignment.End) {
+                Button(onClick = onBook, enabled = provider.available) { Text("Book") }
+                TextButton(onClick = onRequest) { Text("Request") }
+            }
         }
     }
 }
@@ -136,7 +147,11 @@ private fun ServicesCategory() {
 }
 
 @Composable
-private fun NearbyProviders(vm: ServicesViewModel = viewModel(), onBook: (ServiceProvider) -> Unit) {
+private fun NearbyProviders(
+    vm: ServicesViewModel = viewModel(),
+    onBook: (ServiceProvider) -> Unit,
+    onRequest: (ServiceProvider) -> Unit
+) {
     var radius by remember { mutableIntStateOf(15) }
     LazyColumn {
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
@@ -145,7 +160,7 @@ private fun NearbyProviders(vm: ServicesViewModel = viewModel(), onBook: (Servic
             vm.loading -> item { LoadingRow() }
             vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
             vm.providers.isEmpty() -> item { EmptyWithSeed("No providers nearby") { vm.reload() } }
-            else -> items(vm.providers) { p -> ProviderCard(p) { onBook(p) } }
+            else -> items(vm.providers) { p -> ProviderCard(p, onBook = { onBook(p) }, onRequest = { onRequest(p) }) }
         }
     }
 }
@@ -155,12 +170,25 @@ private fun NearbyProviders(vm: ServicesViewModel = viewModel(), onBook: (Servic
 private fun MyActivity(vm: ActivityViewModel = viewModel()) {
     var tab by remember { mutableIntStateOf(1) }
     val tabs = listOf("Service Requests", "Bookings", "Appointments")
-    LaunchedEffect(tab) { if (tab == 1) vm.load() }
+    LaunchedEffect(tab) { if (tab == 0 || tab == 1) vm.load() }
     Column {
         TabRow(tab) {
             tabs.forEachIndexed { i, t -> Tab(tab == i, onClick = { tab = i }, text = { Text(t) }) }
         }
         when (tab) {
+            0 -> when {
+                vm.loading -> LoadingRow()
+                vm.requests.isEmpty() -> Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
+                    Text("No service requests yet. Tap “Request” on a provider.", style = MaterialTheme.typography.bodyMedium)
+                }
+                else -> LazyColumn {
+                    items(vm.requests) { r ->
+                        ListRow(r.title.ifBlank { "Request" },
+                            "${r.status.name.lowercase().replaceFirstChar { it.uppercase() }}" +
+                                if (r.details.isNotBlank()) " · ${r.details}" else "")
+                    }
+                }
+            }
             1 -> when {
                 vm.loading -> LoadingRow()
                 vm.bookings.isEmpty() -> Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
@@ -173,10 +201,8 @@ private fun MyActivity(vm: ActivityViewModel = viewModel()) {
                     }
                 }
             }
-            else -> LazyColumn {
-                items((1..4).toList()) { i ->
-                    ListRow("${tabs[tab].dropLast(1)} #$i", "Coming soon")
-                }
+            else -> Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
+                Text("Appointments coming soon", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

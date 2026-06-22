@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+
+    // Users manage their own profile; admins can read all.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isAdmin();
+    }
+
+    match /admins/{uid} { allow read: if isOwner(uid); allow write: if false; }
+
+    // Public read of approved listings; owner/admin can write. Approval is admin-only.
+    match /stores/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.approved == false;
+      allow update: if isAdmin() || (isOwner(resource.data.ownerUid)
+                    && request.resource.data.approved == resource.data.approved);
+    }
+    match /services/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.approved == false;
+      allow update: if isAdmin() || (isOwner(resource.data.ownerUid)
+                    && request.resource.data.approved == resource.data.approved);
+    }
+
+    match /products/{id} { allow read: if true; allow write: if isSignedIn(); }
+    match /banners/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /categories/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /growItems/{id} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+
+    // Transactions readable by the customer and the involved seller; created by signed-in users.
+    match /orders/{id} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(request.resource.data.customerUid);
+      allow update: if isSignedIn();
+    }
+    match /serviceRequests/{id} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(request.resource.data.customerUid);
+      allow update: if isSignedIn();
+    }
+    match /bookings/{id} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(request.resource.data.customerUid);
+      allow update: if isSignedIn();
+    }
+    match /appointments/{id} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(request.resource.data.customerUid);
+      allow update: if isSignedIn();
+    }
+
+    match /notifications/{id} {
+      allow read, update: if isOwner(resource.data.toUid);
+      allow create: if isSignedIn();
+    }
+  }
+}

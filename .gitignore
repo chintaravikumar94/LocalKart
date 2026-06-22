@@ -1,0 +1,30 @@
+# Android / Gradle
+*.iml
+.gradle/
+/local.properties
+.idea/
+.DS_Store
+build/
+*/build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.keystore
+!debug.keystore
+
+# Kotlin
+.kotlin/
+
+# Firebase config — contains project keys. Keep local; share securely, not via Git.
+# (Remove these two lines if you WANT to commit them for a private repo.)
+**/google-services.json
+admin-web/app.js.local
+
+# Logs
+*.log
+
+# OS / editor
+Thumbs.db
+*.swp

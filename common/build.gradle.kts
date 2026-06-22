@@ -20,7 +20,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
+    api(platform("androidx.compose:compose-bom:2024.06.00"))
     api("androidx.core:core-ktx:1.13.1")
     api("androidx.compose.ui:ui")
     api("androidx.compose.foundation:foundation")

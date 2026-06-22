@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.localkart.common.model.ServiceProvider
 import com.localkart.customer.ui.common.*
 
 /** Bottom nav: Home | Category | Nearby Service Providers | My Activity */
@@ -27,6 +28,7 @@ private enum class SvcTab(val label: String, val icon: ImageVector) {
 @Composable
 fun ServicesMiniApp() {
     var sel by remember { mutableStateOf(SvcTab.HOME) }
+    var bookingProvider by remember { mutableStateOf<ServiceProvider?>(null) }
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -39,12 +41,16 @@ fun ServicesMiniApp() {
     ) { pad ->
         Box(Modifier.padding(pad)) {
             when (sel) {
-                SvcTab.HOME -> ServicesHome()
+                SvcTab.HOME -> ServicesHome(onBook = { bookingProvider = it })
                 SvcTab.CATEGORY -> ServicesCategory()
-                SvcTab.NEARBY -> NearbyProviders()
+                SvcTab.NEARBY -> NearbyProviders(onBook = { bookingProvider = it })
                 SvcTab.ACTIVITY -> MyActivity()
             }
         }
+    }
+
+    bookingProvider?.let { provider ->
+        BookingDialog(provider = provider, onDismiss = { bookingProvider = null })
     }
 }
 
@@ -58,7 +64,7 @@ private val demoBanners = listOf(
 )
 
 @Composable
-private fun ServicesHome(vm: ServicesViewModel = viewModel()) {
+private fun ServicesHome(vm: ServicesViewModel = viewModel(), onBook: (ServiceProvider) -> Unit) {
     var radius by remember { mutableIntStateOf(10) }
     LazyColumn {
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
@@ -70,13 +76,13 @@ private fun ServicesHome(vm: ServicesViewModel = viewModel()) {
             vm.loading -> item { LoadingRow() }
             vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
             vm.providers.isEmpty() -> item { EmptyWithSeed("No service providers nearby") { vm.reload() } }
-            else -> items(vm.providers) { p -> ProviderCard(p.name, p.category, p.rating) }
+            else -> items(vm.providers) { p -> ProviderCard(p) { onBook(p) } }
         }
     }
 }
 
 @Composable
-private fun ProviderCard(name: String, category: String, rating: Double = 4.5) {
+private fun ProviderCard(provider: ServiceProvider, onBook: () -> Unit) {
     ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(50), tonalElevation = 4.dp) {
@@ -85,14 +91,15 @@ private fun ProviderCard(name: String, category: String, rating: Double = 4.5) {
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(name, fontWeight = FontWeight.SemiBold)
-                Text(category.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodySmall)
+                Text(provider.name, fontWeight = FontWeight.SemiBold)
+                Text(provider.category.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodySmall)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Star, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
-                    Text(" $rating · 2.1 km · Available", style = MaterialTheme.typography.labelSmall)
+                    Text(" ${provider.rating} · ${if (provider.pricePerVisit > 0) "₹${provider.pricePerVisit.toInt()}/visit · " else ""}${if (provider.available) "Available" else "Busy"}",
+                        style = MaterialTheme.typography.labelSmall)
                 }
             }
-            Button(onClick = {}) { Text("Book") }
+            Button(onClick = onBook, enabled = provider.available) { Text("Book") }
         }
     }
 }
@@ -129,31 +136,47 @@ private fun ServicesCategory() {
 }
 
 @Composable
-private fun NearbyProviders() {
+private fun NearbyProviders(vm: ServicesViewModel = viewModel(), onBook: (ServiceProvider) -> Unit) {
     var radius by remember { mutableIntStateOf(15) }
     LazyColumn {
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
         item { SearchBar("Search service provider") }
-        items((1..10).toList()) { i -> ProviderCard("Nearby Provider $i", "electrician") }
+        when {
+            vm.loading -> item { LoadingRow() }
+            vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
+            vm.providers.isEmpty() -> item { EmptyWithSeed("No providers nearby") { vm.reload() } }
+            else -> items(vm.providers) { p -> ProviderCard(p) { onBook(p) } }
+        }
     }
 }
 
-/** My Activity: Service Requests | Bookings | Appointments */
+/** My Activity: Service Requests | Bookings | Appointments. Bookings tab is live. */
 @Composable
-private fun MyActivity() {
-    var tab by remember { mutableIntStateOf(0) }
+private fun MyActivity(vm: ActivityViewModel = viewModel()) {
+    var tab by remember { mutableIntStateOf(1) }
     val tabs = listOf("Service Requests", "Bookings", "Appointments")
+    LaunchedEffect(tab) { if (tab == 1) vm.load() }
     Column {
         TabRow(tab) {
             tabs.forEachIndexed { i, t -> Tab(tab == i, onClick = { tab = i }, text = { Text(t) }) }
         }
-        LazyColumn {
-            items((1..6).toList()) { i ->
-                ListRow("${tabs[tab].dropLast(1)} #$i", when (tab) {
-                    0 -> "Status: In progress"
-                    1 -> "Confirmed · Tomorrow 10 AM"
-                    else -> "Confirmed · 24 Jun, 4 PM"
-                })
+        when (tab) {
+            1 -> when {
+                vm.loading -> LoadingRow()
+                vm.bookings.isEmpty() -> Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
+                    Text("No bookings yet. Book a service from Home.", style = MaterialTheme.typography.bodyMedium)
+                }
+                else -> LazyColumn {
+                    items(vm.bookings) { b ->
+                        ListRow(b.service.ifBlank { "Service" },
+                            "${b.status.name.lowercase().replaceFirstChar { it.uppercase() }} · ${formatSlot(b.scheduledAt)}")
+                    }
+                }
+            }
+            else -> LazyColumn {
+                items((1..4).toList()) { i ->
+                    ListRow("${tabs[tab].dropLast(1)} #$i", "Coming soon")
+                }
             }
         }
     }

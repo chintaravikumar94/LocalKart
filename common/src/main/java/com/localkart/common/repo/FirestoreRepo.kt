@@ -58,9 +58,54 @@ class FirestoreRepo {
         return db.collection("orders").add(order).await().id
     }
 
+    // Sorted client-side to avoid needing a composite index during development.
     suspend fun ordersForCustomer(customerUid: String): List<Order> =
         db.collection("orders").whereEqualTo("customerUid", customerUid)
-            .orderBy("createdAt", Query.Direction.DESCENDING).get().await().toObjects()
+            .get().await().toObjects<Order>().sortedByDescending { it.createdAt }
+
+    // ---- Products (store owner) ----
+    suspend fun storesForOwner(ownerUid: String): List<Store> =
+        db.collection("stores").whereEqualTo("ownerUid", ownerUid).get().await().toObjects()
+
+    suspend fun servicesForOwner(ownerUid: String): List<ServiceProvider> =
+        db.collection("services").whereEqualTo("ownerUid", ownerUid).get().await().toObjects()
+
+    suspend fun addProduct(product: Product): String =
+        db.collection("products").add(product).await().id
+
+    suspend fun setProductStock(productId: String, inStock: Boolean) =
+        db.collection("products").document(productId).update("inStock", inStock).await()
+
+    suspend fun deleteProduct(productId: String) =
+        db.collection("products").document(productId).delete().await()
+
+    // ---- Bookings ----
+    suspend fun createBooking(customerUid: String, providerId: String, service: String, scheduledAt: com.google.firebase.Timestamp): String {
+        val booking = Booking(
+            customerUid = customerUid, providerId = providerId,
+            service = service, scheduledAt = scheduledAt, status = BookingStatus.NEW
+        )
+        return db.collection("bookings").add(booking).await().id
+    }
+
+    suspend fun bookingsForCustomer(customerUid: String): List<Booking> =
+        db.collection("bookings").whereEqualTo("customerUid", customerUid)
+            .get().await().toObjects<Booking>().sortedByDescending { it.scheduledAt }
+
+    /** All bookings across every service this seller owns (sorted newest first). */
+    suspend fun bookingsForOwner(ownerUid: String): List<Booking> {
+        val providerIds = db.collection("services").whereEqualTo("ownerUid", ownerUid)
+            .get().await().documents.map { it.id }
+        if (providerIds.isEmpty()) return emptyList()
+        val out = mutableListOf<Booking>()
+        providerIds.chunked(10).forEach { chunk ->
+            out += db.collection("bookings").whereIn("providerId", chunk).get().await().toObjects<Booking>()
+        }
+        return out.sortedByDescending { it.scheduledAt }
+    }
+
+    suspend fun updateBookingStatus(bookingId: String, status: BookingStatus) =
+        db.collection("bookings").document(bookingId).update("status", status.name).await()
 
     // ---- Seller side ----
     suspend fun ordersForStore(storeId: String): List<Order> =

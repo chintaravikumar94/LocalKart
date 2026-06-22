@@ -24,17 +24,32 @@ private enum class OwnerTab(val label: String, val icon: ImageVector) {
 @Composable
 fun StoreOwnerApp() {
     var sel by remember { mutableStateOf(OwnerTab.HOME) }
+    var overlay by remember { mutableStateOf<String?>(null) }
     Scaffold(bottomBar = {
         NavigationBar {
             OwnerTab.values().forEach { t ->
-                NavigationBarItem(sel == t, onClick = { sel = t },
+                NavigationBarItem(sel == t, onClick = { sel = t; overlay = null },
                     icon = { Icon(t.icon, t.label) }, label = { Text(t.label) })
             }
         }
     }) { pad ->
         Box(Modifier.padding(pad)) {
+            if (overlay == "products") {
+                ProductsManagerScreen(onBack = { overlay = null })
+                return@Box
+            }
             when (sel) {
-                OwnerTab.HOME -> OwnerHome()
+                OwnerTab.HOME -> OwnerHome(
+                    onAction = { a ->
+                        when (a) {
+                            "My Products" -> overlay = "products"
+                            "Orders" -> sel = OwnerTab.ORDERS
+                            "Service Requests" -> sel = OwnerTab.REQUESTS
+                            "Grow" -> sel = OwnerTab.GROW
+                            "My Shop" -> sel = OwnerTab.SHOP
+                        }
+                    }
+                )
                 OwnerTab.GROW -> GrowYourBusiness()
                 OwnerTab.ORDERS -> OrdersScreen()
                 OwnerTab.REQUESTS -> StatListPage("Service Requests",
@@ -50,7 +65,7 @@ fun StoreOwnerApp() {
 }
 
 @Composable
-private fun OwnerHome() {
+private fun OwnerHome(onAction: (String) -> Unit = {}) {
     LazyColumn {
         item { WelcomeHeader("Ravikumar") }
         item { ShopProfileCard("Ravikumar Stores", "Groceries · Service provider available") }
@@ -61,14 +76,17 @@ private fun OwnerHome() {
             "Tip: add product photos to sell 2x faster",
             "5 customers viewed your store today")) }
         item {
-            QuickActionsGrid(listOf(
-                QuickAction("Grow", Icons.Default.TrendingUp),
-                QuickAction("My Products", Icons.Default.Inventory),
-                QuickAction("Orders", Icons.Default.Receipt),
-                QuickAction("Customer Chats", Icons.Default.Chat),
-                QuickAction("Service Requests", Icons.Default.Assignment),
-                QuickAction("My Shop", Icons.Default.Store)
-            ))
+            QuickActionsGrid(
+                listOf(
+                    QuickAction("Grow", Icons.Default.TrendingUp),
+                    QuickAction("My Products", Icons.Default.Inventory),
+                    QuickAction("Orders", Icons.Default.Receipt),
+                    QuickAction("Customer Chats", Icons.Default.Chat),
+                    QuickAction("Service Requests", Icons.Default.Assignment),
+                    QuickAction("My Shop", Icons.Default.Store)
+                ),
+                onClick = onAction
+            )
         }
     }
 }

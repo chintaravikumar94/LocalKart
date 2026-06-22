@@ -186,11 +186,16 @@ private fun NearbyStores() {
 
 @Composable
 private fun AccountScreen() {
+    var showOrders by remember { mutableStateOf(false) }
+    if (showOrders) {
+        OrderHistoryScreen(onBack = { showOrders = false })
+        return
+    }
     LazyColumn(Modifier.padding(12.dp)) {
         item { ProfileCard() }
         item {
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                StatCard("Orders", "12", Modifier.weight(1f))
+                StatCard("Orders", "View", Modifier.weight(1f).clickable { showOrders = true })
                 Spacer(Modifier.width(8.dp))
                 StatCard("Wishlist", "5", Modifier.weight(1f))
             }

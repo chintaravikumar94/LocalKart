@@ -37,9 +37,7 @@ fun ServiceProviderApp() {
                 ProviderTab.JOBS -> StatListPage("Job Requests",
                     listOf("Total" to "57", "New" to "6", "Active" to "11", "Done" to "40"),
                     listOf("All", "New", "Active", "Done", "Declined")) { "Job detail & location" }
-                ProviderTab.BOOKINGS -> StatListPage("Bookings",
-                    listOf("Total" to "33", "New" to "3", "Confirmed" to "10", "Done" to "20"),
-                    listOf("All", "New", "Confirmed", "Done", "Cancelled")) { "Booking slot detail" }
+                ProviderTab.BOOKINGS -> ProviderBookingsScreen()
                 ProviderTab.PROFILE -> ProfileWithIdCard("SVP-55821", "Ravikumar (Electrician)", approved = true, rating = 4.8)
             }
         }

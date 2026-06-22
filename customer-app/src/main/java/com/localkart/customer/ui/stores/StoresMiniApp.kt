@@ -1,5 +1,6 @@
 package com.localkart.customer.ui.stores
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -32,12 +33,13 @@ private enum class StoreTab(val label: String, val icon: ImageVector) {
 @Composable
 fun StoresMiniApp() {
     var sel by remember { mutableStateOf(StoreTab.HOME) }
+    var detailStore by remember { mutableStateOf<Store?>(null) }
     Scaffold(
         bottomBar = {
             NavigationBar {
                 StoreTab.values().forEach { t ->
                     NavigationBarItem(
-                        selected = sel == t, onClick = { sel = t },
+                        selected = sel == t, onClick = { sel = t; detailStore = null },
                         icon = { Icon(t.icon, t.label) }, label = { Text(t.label) }
                     )
                 }
@@ -45,8 +47,11 @@ fun StoresMiniApp() {
         }
     ) { pad ->
         Box(Modifier.padding(pad)) {
-            when (sel) {
-                StoreTab.HOME -> StoresHome()
+            val store = detailStore
+            if (store != null) {
+                StoreDetailScreen(store) { detailStore = null }
+            } else when (sel) {
+                StoreTab.HOME -> StoresHome(onOpenStore = { detailStore = it })
                 StoreTab.CATEGORY -> StoresCategory()
                 StoreTab.NEARBY -> NearbyStores()
                 StoreTab.ACCOUNT -> AccountScreen()
@@ -66,7 +71,7 @@ private val demoBanners = listOf(
 )
 
 @Composable
-private fun StoresHome(vm: StoresViewModel = viewModel()) {
+private fun StoresHome(vm: StoresViewModel = viewModel(), onOpenStore: (Store) -> Unit = {}) {
     var radius by remember { mutableIntStateOf(10) }
     LazyColumn {
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
@@ -78,14 +83,14 @@ private fun StoresHome(vm: StoresViewModel = viewModel()) {
             vm.loading -> item { LoadingRow() }
             vm.error != null -> item { ErrorRow(vm.error!!) { vm.reload() } }
             vm.stores.isEmpty() -> item { EmptyWithSeed("No stores nearby") { vm.reload() } }
-            else -> items(vm.stores) { s -> StoreCard(s.name, s.category, s.rating) }
+            else -> items(vm.stores) { s -> StoreCard(s.name, s.category, s.rating) { onOpenStore(s) } }
         }
     }
 }
 
 @Composable
-private fun StoreCard(name: String, category: String, rating: Double = 4.5) {
-    ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+private fun StoreCard(name: String, category: String, rating: Double = 4.5, onClick: () -> Unit = {}) {
+    ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clickable { onClick() }) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 4.dp) {
                 Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {

@@ -166,6 +166,11 @@ class FirestoreRepo {
     suspend fun updateAppointmentStatus(id: String, status: AppointmentStatus) =
         db.collection("appointments").document(id).update("status", status.name).await()
 
+    // ---- Notifications ----
+    suspend fun notificationsFor(uid: String): List<AppNotification> =
+        db.collection("notifications").whereEqualTo("toUid", uid)
+            .get().await().toObjects<AppNotification>().sortedByDescending { it.createdAt }
+
     // ---- FCM token ----
     suspend fun saveFcmToken(uid: String, token: String) =
         db.collection("users").document(uid).update("fcmToken", token).await()

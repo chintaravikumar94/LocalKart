@@ -1,6 +1,7 @@
 package com.localkart.customer.ui.common
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,7 +13,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
@@ -150,10 +153,32 @@ fun CartScreen() {
 
 @Composable
 fun NotificationsScreen() {
+    val repo = remember { com.localkart.common.repo.FirestoreRepo() }
+    var items by remember { mutableStateOf<List<com.localkart.common.model.AppNotification>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        val uid = com.localkart.common.auth.AuthManager.currentUid
+        if (uid != null) runCatching { repo.notificationsFor(uid) }.onSuccess { items = it }
+        loading = false
+    }
     LazyColumn {
         item { SectionHeader("Notifications") }
-        items((1..8).toList()) { i ->
-            ListRow("Notification $i", "Tap to view details · ${i}h ago")
+        when {
+            loading -> item { LoadingRow() }
+            items.isEmpty() -> item {
+                Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    Text("No notifications yet", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            else -> items(items) { n ->
+                ListItem(
+                    headlineContent = { Text(n.title.ifBlank { "Notification" }) },
+                    supportingContent = { if (n.body.isNotBlank()) Text(n.body) },
+                    leadingContent = { Icon(Icons.Default.Notifications, null) }
+                )
+                HorizontalDivider()
+            }
         }
     }
 }
@@ -200,25 +225,55 @@ fun LogoutDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
     )
 }
 
-/** Google sign-in entry screen (wire to AuthManager.googleSignInIntent). */
+/** Premium Google sign-in entry screen. */
 @Composable
 fun AuthScreen(onGoogleSignIn: () -> Unit, onPhoneSignIn: () -> Unit = {}) {
-    Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.verticalGradient(
+                listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.background)
+            )
+        )
     ) {
-        Icon(Icons.Default.Storefront, null, Modifier.size(72.dp), tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(16.dp))
-        Text("LocalKart", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-        Text("Shop local stores & book local services", style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(48.dp))
-        Button(onClick = onGoogleSignIn, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Icon(Icons.Default.Login, null); Spacer(Modifier.width(8.dp)); Text("Continue with Google")
-        }
-        Spacer(Modifier.height(12.dp))
-        OutlinedButton(onClick = onPhoneSignIn, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Text("Continue with Phone (OTP)")
+        Column(
+            Modifier.fillMaxSize().padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                shape = RoundedCornerShape(30.dp),
+                color = MaterialTheme.colorScheme.primary,
+                shadowElevation = 10.dp
+            ) {
+                Box(Modifier.size(100.dp), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Storefront, null, Modifier.size(50.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("LocalKart", style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Shop local stores & book trusted services near you",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(44.dp))
+            Button(onClick = onGoogleSignIn,
+                modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp)) {
+                Icon(Icons.Default.Login, null); Spacer(Modifier.width(8.dp))
+                Text("Continue with Google", style = MaterialTheme.typography.labelLarge)
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(onClick = onPhoneSignIn,
+                modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp)) {
+                Text("Continue with Phone (OTP)")
+            }
+            Spacer(Modifier.height(22.dp))
+            Text("By continuing you agree to our Terms & Privacy Policy",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
     }
 }

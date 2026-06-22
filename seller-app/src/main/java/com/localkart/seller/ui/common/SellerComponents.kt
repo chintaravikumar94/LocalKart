@@ -310,14 +310,27 @@ fun SellerLogoutItem() {
 
 @Composable
 fun SellerNotifications() {
+    val repo = remember { com.localkart.common.repo.FirestoreRepo() }
+    var items by remember { mutableStateOf<List<com.localkart.common.model.AppNotification>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        val uid = com.localkart.common.auth.AuthManager.currentUid
+        if (uid != null) runCatching { repo.notificationsFor(uid) }.onSuccess { items = it }
+        loading = false
+    }
     LazyColumn {
         item { Text("Notifications", Modifier.padding(16.dp),
             style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
-        items((1..8).toList()) { i ->
-            ListItem(headlineContent = { Text("Notification $i") },
-                supportingContent = { Text("New order / request · ${i}h ago") },
-                leadingContent = { Icon(Icons.Default.Notifications, null) })
-            HorizontalDivider()
+        when {
+            loading -> item { Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) { CircularProgressIndicator() } }
+            items.isEmpty() -> item { Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
+                Text("No notifications yet", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+            else -> items(items) { n ->
+                ListItem(headlineContent = { Text(n.title.ifBlank { "Notification" }) },
+                    supportingContent = { if (n.body.isNotBlank()) Text(n.body) },
+                    leadingContent = { Icon(Icons.Default.Notifications, null) })
+                HorizontalDivider()
+            }
         }
     }
 }
@@ -347,27 +360,50 @@ fun SellerAuthScreen(onGoogleSignIn: (com.localkart.common.model.UserRole) -> Un
         "both" -> com.localkart.common.model.UserRole.STORE_AND_PROVIDER
         else -> com.localkart.common.model.UserRole.STORE_OWNER
     }
-    Column(Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center) {
-        Icon(Icons.Default.Storefront, null, Modifier.size(72.dp), tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(12.dp))
-        Text("LocalKart Seller", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Sell products & offer services to your neighbourhood")
-        Spacer(Modifier.height(32.dp))
-        Text("Sign up as", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(8.dp))
-        Column {
-            listOf("store" to "Store Owner", "provider" to "Service Provider", "both" to "Both")
-                .forEach { (k, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(role == k, onClick = { role = k }); Text(label)
-                    }
+    Box(
+        Modifier.fillMaxSize().background(
+            androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.background)
+            )
+        )
+    ) {
+        Column(Modifier.fillMaxSize().padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center) {
+            Surface(shape = RoundedCornerShape(30.dp), color = MaterialTheme.colorScheme.primary, shadowElevation = 10.dp) {
+                Box(Modifier.size(100.dp), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Storefront, null, Modifier.size(50.dp), tint = MaterialTheme.colorScheme.onPrimary)
                 }
-        }
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = { onGoogleSignIn(selectedRole) }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Icon(Icons.Default.Login, null); Spacer(Modifier.width(8.dp)); Text("Continue with Google")
+            }
+            Spacer(Modifier.height(22.dp))
+            Text("LocalKart Seller", style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground)
+            Spacer(Modifier.height(4.dp))
+            Text("Sell products & offer services to your neighbourhood",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Spacer(Modifier.height(28.dp))
+            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Sign up as", style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(4.dp))
+                    listOf("store" to "Store Owner", "provider" to "Service Provider", "both" to "Both")
+                        .forEach { (k, label) ->
+                            Row(Modifier.fillMaxWidth().clickable { role = k },
+                                verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(role == k, onClick = { role = k }); Text(label)
+                            }
+                        }
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            Button(onClick = { onGoogleSignIn(selectedRole) },
+                modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp)) {
+                Icon(Icons.Default.Login, null); Spacer(Modifier.width(8.dp))
+                Text("Continue with Google", style = MaterialTheme.typography.labelLarge)
+            }
         }
     }
 }

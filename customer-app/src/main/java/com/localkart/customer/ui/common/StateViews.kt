@@ -16,9 +16,8 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun LoadingRow() {
-    Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
-    }
+    // Skeleton shimmer instead of a plain spinner (pro UX).
+    ShimmerList(rows = 6)
 }
 
 @Composable

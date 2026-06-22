@@ -160,6 +160,7 @@ fun NotificationsScreen() {
 
 @Composable
 fun MoreScreen() {
+    var confirmLogout by remember { mutableStateOf(false) }
     val items = listOf(
         "My Profile" to Icons.Default.Person,
         "Order History" to Icons.Default.Receipt,
@@ -171,14 +172,32 @@ fun MoreScreen() {
     LazyColumn {
         item { SectionHeader("More") }
         items(items) { (label, icon) ->
+            val isLogout = label == "Logout"
             ListItem(
-                headlineContent = { Text(label) },
-                leadingContent = { Icon(icon, null) },
-                modifier = Modifier.clickable { }
+                headlineContent = { Text(label, color = if (isLogout) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified) },
+                leadingContent = { Icon(icon, null, tint = if (isLogout) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified) },
+                modifier = Modifier.clickable { if (isLogout) confirmLogout = true }
             )
             HorizontalDivider()
         }
     }
+    if (confirmLogout) {
+        LogoutDialog(onDismiss = { confirmLogout = false }, onConfirm = {
+            confirmLogout = false
+            com.localkart.common.auth.AuthManager.signOut()
+        })
+    }
+}
+
+@Composable
+fun LogoutDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Log out?") },
+        text = { Text("You'll need to sign in again to continue.") },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Log out") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 /** Google sign-in entry screen (wire to AuthManager.googleSignInIntent). */

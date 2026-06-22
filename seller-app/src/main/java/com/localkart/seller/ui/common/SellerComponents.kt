@@ -279,7 +279,32 @@ fun ProfileWithIdCard(sellerId: String, name: String, approved: Boolean, rating:
         item { Spacer(Modifier.height(12.dp)) }
         item { ListItem(headlineContent = { Text("Support") }, leadingContent = { Icon(Icons.Default.Help, null) }) }
         item { ListItem(headlineContent = { Text("Contact") }, leadingContent = { Icon(Icons.Default.Call, null) }) }
-        item { ListItem(headlineContent = { Text("Logout") }, leadingContent = { Icon(Icons.Default.Logout, null) }) }
+        item { SellerLogoutItem() }
+    }
+}
+
+/** Logout row with a confirm dialog; signs out via AuthManager (MainActivity returns to login). */
+@Composable
+fun SellerLogoutItem() {
+    var confirm by remember { mutableStateOf(false) }
+    ListItem(
+        headlineContent = { Text("Logout", color = MaterialTheme.colorScheme.error) },
+        leadingContent = { Icon(Icons.Default.Logout, null, tint = MaterialTheme.colorScheme.error) },
+        modifier = Modifier.clickable { confirm = true }
+    )
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text("Log out?") },
+            text = { Text("You'll need to sign in again to continue.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = false
+                    com.localkart.common.auth.AuthManager.signOut()
+                }) { Text("Log out") }
+            },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } }
+        )
     }
 }
 
@@ -303,7 +328,14 @@ fun SellerMore() {
     LazyColumn {
         item { Text("More", Modifier.padding(16.dp),
             style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
-        items(items) { ListItem(headlineContent = { Text(it) }, modifier = Modifier.clickable { }); HorizontalDivider() }
+        items(items) { label ->
+            if (label == "Logout") {
+                SellerLogoutItem()
+            } else {
+                ListItem(headlineContent = { Text(label) }, modifier = Modifier.clickable { })
+                HorizontalDivider()
+            }
+        }
     }
 }
 

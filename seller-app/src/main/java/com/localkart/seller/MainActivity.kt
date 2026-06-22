@@ -32,6 +32,14 @@ class MainActivity : ComponentActivity() {
                 var checking by remember { mutableStateOf(AuthManager.isLoggedIn) }
                 var pendingRole by remember { mutableStateOf(UserRole.STORE_OWNER) }
 
+                // Return to login when the user logs out from anywhere in the app.
+                DisposableEffect(Unit) {
+                    val stop = AuthManager.addAuthListener { signedIn ->
+                        if (!signedIn) { user = null; checking = false }
+                    }
+                    onDispose { stop() }
+                }
+
                 val webClientId = remember {
                     val id = context.resources.getIdentifier(
                         "default_web_client_id", "string", context.packageName

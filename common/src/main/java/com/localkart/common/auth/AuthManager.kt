@@ -64,4 +64,16 @@ object AuthManager {
     }
 
     fun signOut() = Firebase.auth.signOut()
+
+    /**
+     * Observe sign-in state. Calls [onChange] with true/false whenever auth changes
+     * (including immediately with the current state). Returns a function to stop observing.
+     */
+    fun addAuthListener(onChange: (Boolean) -> Unit): () -> Unit {
+        val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener {
+            onChange(it.currentUser != null)
+        }
+        Firebase.auth.addAuthStateListener(listener)
+        return { Firebase.auth.removeAuthStateListener(listener) }
+    }
 }

@@ -48,7 +48,7 @@ private fun ProviderHome() {
         item { WelcomeHeader("Ravikumar") }
         item { ShopProfileCard("Ravikumar Electrical", "Electrician") }
         item { MetricRow("New Requests" to "6", "Upcoming Bookings" to "3") }
-        item { SellerBanners(listOf("a","b","c")) }
+        item { LiveSellerBanners() }
         item { InfoStrip(listOf(
             "Respond fast to rank higher in search",
             "Add your skills to get more jobs",

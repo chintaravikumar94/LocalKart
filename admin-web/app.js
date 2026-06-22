@@ -8,15 +8,32 @@ const firebaseConfig = {
   appId: "1:537191050226:web:f4215514741ee93cbb196b"
 };
 
-let db = null, auth = null, LIVE = false;
+let db = null, auth = null, storage = null, LIVE = false;
 try {
   if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
     firebase.initializeApp(firebaseConfig);
     auth = firebase.auth();
     db = firebase.firestore();
+    storage = firebase.storage();
     LIVE = true;
   }
 } catch (e) { console.warn("Firebase init skipped:", e); }
+
+/** Uploads the chosen file to Storage and returns its download URL ("" if none). */
+async function uploadImage(fileInputId, folder) {
+  const f = document.getElementById(fileInputId)?.files?.[0];
+  if (!f || !LIVE) return "";
+  const ref = storage.ref().child(`${folder}/${Date.now()}_${f.name.replace(/\s+/g, "_")}`);
+  await ref.put(f);
+  return await ref.getDownloadURL();
+}
+
+/** Live preview for a file input -> <img>. */
+function previewFile(inputId, imgId) {
+  const f = document.getElementById(inputId)?.files?.[0];
+  const img = document.getElementById(imgId);
+  if (f && img) { img.src = URL.createObjectURL(f); img.style.display = "block"; }
+}
 
 /* ---------------- TOAST ---------------- */
 function toast(msg, kind) {
@@ -215,7 +232,7 @@ function render() {
 
   // Banners
   document.getElementById("bannerRows").innerHTML = banners.map(b =>
-    `<tr><td>${b.title}</td><td>${b.order ?? "-"}</td><td>${b.active ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td>
+    `<tr><td>${img(b.imageUrl)} ${b.title}</td><td><span class="tag info">${b.audience || "customer"}</span></td><td>${b.order ?? "-"}</td><td>${b.active ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td>
       <td class="row-actions"><button class="mini" onclick="toggleBanner('${b.id}',${!b.active})">${b.active ? "Disable" : "Enable"}</button>
       <button class="reject" onclick="del('banners','${b.id}')">Delete</button></td></tr>`).join("") || emptyRow(4);
 
@@ -292,36 +309,56 @@ function openGrow() {
     <label>Description</label><input id="g-desc" placeholder="Short description">
     <label>CTA text</label><input id="g-cta" placeholder="e.g. Boost">
     <label>Target role</label><input id="g-role" placeholder="all | store_owner | service_provider" value="all">
-    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveGrow()">Save</button></div>`);
+    <label>Image (optional)</label>
+    <input id="g-file" type="file" accept="image/*" onchange="previewFile('g-file','g-prev')">
+    <img id="g-prev" style="display:none;width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="g-save" onclick="saveGrow()">Save</button></div>`);
 }
 async function saveGrow() {
-  const item = {
-    title: val("g-title"), description: val("g-desc"), ctaText: val("g-cta"),
-    targetRole: val("g-role") || "all", imageUrl: ""
-  };
-  if (!item.title) return toast("Title required", "bad");
+  const title = val("g-title");
+  if (!title) return toast("Title required", "bad");
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
-  try { await db.collection("growItems").add(item); toast("Grow item added", "ok"); closeModal(); await loadAll(); }
-  catch (e) { toast("Failed: " + e.message, "bad"); }
+  const btn = document.getElementById("g-save"); if (btn) { btn.disabled = true; btn.textContent = "Uploading…"; }
+  try {
+    const imageUrl = await uploadImage("g-file", "growItems");
+    await db.collection("growItems").add({
+      title, description: val("g-desc"), ctaText: val("g-cta"),
+      targetRole: val("g-role") || "all", imageUrl
+    });
+    toast("Grow item added", "ok"); closeModal(); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
 }
 
 function openBanner() {
   modal(`<h3>Add banner</h3>
     <label>Title</label><input id="b-title" placeholder="e.g. Diwali Sale">
-    <label>Image URL</label><input id="b-img" placeholder="https://…">
+    <label>Show in app</label>
+    <select id="b-aud">
+      <option value="customer">Customer app</option>
+      <option value="seller">Seller app</option>
+      <option value="both">Both apps</option>
+    </select>
+    <label>Banner image</label>
+    <input id="b-file" type="file" accept="image/*" onchange="previewFile('b-file','b-prev')">
+    <img id="b-prev" style="display:none;width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
     <label>Order</label><input id="b-order" type="number" value="1">
     <label>Target (optional)</label><input id="b-target" placeholder="category or deep link">
-    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveBanner()">Save</button></div>`);
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="b-save" onclick="saveBanner()">Save</button></div>`);
 }
 async function saveBanner() {
-  const item = {
-    title: val("b-title"), imageUrl: val("b-img"), target: val("b-target"),
-    order: parseInt(val("b-order") || "1", 10), active: true
-  };
-  if (!item.title) return toast("Title required", "bad");
+  const title = val("b-title");
+  if (!title) return toast("Title required", "bad");
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
-  try { await db.collection("banners").add(item); toast("Banner added", "ok"); closeModal(); await loadAll(); }
-  catch (e) { toast("Failed: " + e.message, "bad"); }
+  const btn = document.getElementById("b-save"); if (btn) { btn.disabled = true; btn.textContent = "Uploading…"; }
+  try {
+    const imageUrl = await uploadImage("b-file", "banners");
+    await db.collection("banners").add({
+      title, imageUrl, target: val("b-target"),
+      audience: document.getElementById("b-aud")?.value || "customer",
+      order: parseInt(val("b-order") || "1", 10), active: true
+    });
+    toast("Banner added", "ok"); closeModal(); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
 }
 function val(id) { return (document.getElementById(id)?.value || "").trim(); }
 

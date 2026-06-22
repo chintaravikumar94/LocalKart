@@ -41,6 +41,13 @@ class FirestoreRepo {
     suspend fun activeBanners(): List<Banner> =
         db.collection("banners").whereEqualTo("active", true).orderBy("order").get().await().toObjects()
 
+    /** Active banners targeted at an audience ("customer" or "seller"); includes "both". */
+    suspend fun bannersFor(audience: String): List<Banner> =
+        db.collection("banners").whereEqualTo("active", true).get().await()
+            .toObjects<Banner>()
+            .filter { it.audience.isBlank() || it.audience == audience || it.audience == "both" }
+            .sortedBy { it.order }
+
     suspend fun categories(type: String): List<Category> =
         db.collection("categories").whereEqualTo("type", type).get().await().toObjects()
 

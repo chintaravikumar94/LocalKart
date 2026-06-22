@@ -133,6 +133,7 @@ data class Banner(
     val imageUrl: String = "",
     val title: String = "",
     val target: String = "",          // deep link / category
+    val audience: String = "customer", // customer | seller | both
     val active: Boolean = true,
     val order: Int = 0
 )

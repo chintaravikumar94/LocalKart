@@ -123,13 +123,34 @@ fun SellerBanners(urls: List<String>, dwellMillis: Int = 4000) {
     }
     Column(Modifier.padding(vertical = 8.dp)) {
         HorizontalPager(pager, contentPadding = PaddingValues(horizontal = 16.dp), pageSpacing = 10.dp,
-            modifier = Modifier.fillMaxWidth().height(140.dp)) { _ ->
-            Box(Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp))
-                .background(Brush.horizontalGradient(listOf(Color(0xFF7C3AED), Color(0xFF2563EB)))))
+            modifier = Modifier.fillMaxWidth().height(140.dp)) { page ->
+            val url = urls[page]
+            if (url.startsWith("http")) {
+                coil.compose.AsyncImage(
+                    url, "Banner",
+                    Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Box(Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFF7C3AED), Color(0xFF2563EB)))))
+            }
         }
         LinearProgressIndicator(progress = { progress },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).height(3.dp))
     }
+}
+
+/** Loads active seller banners and shows them; falls back to gradient placeholders. */
+@Composable
+fun LiveSellerBanners(fallback: List<String> = listOf("a", "b", "c")) {
+    val repo = remember { com.localkart.common.repo.FirestoreRepo() }
+    var urls by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        runCatching { repo.bannersFor("seller") }
+            .onSuccess { list -> urls = list.mapNotNull { it.imageUrl.ifBlank { null } } }
+    }
+    SellerBanners(if (urls.isNotEmpty()) urls else fallback)
 }
 
 data class QuickAction(val label: String, val icon: ImageVector)

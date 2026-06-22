@@ -71,7 +71,7 @@ private fun OwnerHome(onAction: (String) -> Unit = {}) {
         item { WelcomeHeader("Ravikumar") }
         item { ShopProfileCard("Ravikumar Stores", "Groceries · Service provider available") }
         item { MetricRow("Orders Today" to "14", "Sales" to "₹9,240") }
-        item { SellerBanners(listOf("a","b","c")) }
+        item { LiveSellerBanners() }
         item { InfoStrip(listOf(
             "New: enable UPI auto-settlement",
             "Tip: add product photos to sell 2x faster",

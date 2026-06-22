@@ -29,9 +29,10 @@
     background:linear-gradient(135deg,var(--primary),var(--primary-2))}
   .login-card h1{font-size:20px}
   .sub{color:var(--muted);font-size:13px;margin:6px 0 26px}
-  input{width:100%;padding:13px 14px;margin:7px 0;border-radius:11px;border:1px solid var(--line);
+  input,select{width:100%;padding:13px 14px;margin:7px 0;border-radius:11px;border:1px solid var(--line);
     background:#0b1322;color:var(--text);font-size:14px;outline:none}
-  input:focus{border-color:var(--primary)}
+  input:focus,select:focus{border-color:var(--primary)}
+  select option{background:#0b1322;color:var(--text)}
   .btn-primary{width:100%;padding:13px;background:var(--primary);color:#fff;margin-top:12px;transition:.15s}
   .btn-primary:hover{filter:brightness(1.08)}
   .btn-google{width:100%;padding:13px;background:#fff;color:#1f2937;margin-top:10px;
@@ -229,7 +230,7 @@
 
     <section class="view" id="view-banners">
       <div class="panel"><h3>Banners <button class="add" onclick="openBanner()">＋ Add</button></h3>
-        <table><thead><tr><th>Title</th><th>Order</th><th>Active</th><th>Action</th></tr></thead><tbody id="bannerRows"></tbody></table></div></section>
+        <table><thead><tr><th>Title</th><th>Audience</th><th>Order</th><th>Active</th><th>Action</th></tr></thead><tbody id="bannerRows"></tbody></table></div></section>
   </main>
 </div>
 
@@ -240,7 +241,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

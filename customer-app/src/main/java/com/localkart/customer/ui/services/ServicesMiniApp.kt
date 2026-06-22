@@ -79,7 +79,7 @@ private fun ServicesHome(
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
         item { SearchBar("Search service") }
         item { CategoryChips(serviceCategories, vm.category) { vm.select(it) } }
-        item { BannerSlider(demoBanners) }
+        item { LiveBannerSlider("customer", demoBanners) }
         item { SectionHeader("Nearest ${if (vm.category=="all") "Providers" else vm.category.replaceFirstChar { it.uppercase() }}") }
         when {
             vm.loading -> item { LoadingRow() }

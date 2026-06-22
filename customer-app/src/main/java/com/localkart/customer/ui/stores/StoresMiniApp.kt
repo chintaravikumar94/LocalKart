@@ -85,7 +85,7 @@ private fun StoresHome(vm: StoresViewModel = viewModel(), onOpenStore: (Store) -
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
         item { SearchBar("Search shop") }
         item { CategoryChips(storeCategories, vm.category) { vm.select(it) } }
-        item { BannerSlider(demoBanners) }
+        item { LiveBannerSlider("customer", demoBanners) }
         item { SectionHeader(if (vm.category == "all") "All Shops" else vm.category.replace('_',' ')) }
         when {
             vm.loading -> item { LoadingRow() }
@@ -172,7 +172,7 @@ private fun NearbyStores() {
     var radius by remember { mutableIntStateOf(15) }
     LazyColumn {
         item { LocationBar("Hyderabad, Madhapur", radius, {}, { radius = it }) }
-        item { BannerSlider(demoBanners) }
+        item { LiveBannerSlider("customer", demoBanners) }
         item { SectionHeader("Categories") }
         item {
             LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(120.dp)) {

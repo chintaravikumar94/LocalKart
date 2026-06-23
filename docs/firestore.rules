@@ -93,6 +93,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Payment history records (activation + monthly): owner reads own, admin writes.
+    match /payments/{id} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
     // Reviews: anyone can read; a signed-in customer can post their own.
     match /reviews/{id} {
       allow read: if true;

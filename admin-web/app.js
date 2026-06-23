@@ -120,9 +120,9 @@ async function loadAll() {
     fetchCol("admins", DEMO.admins), fetchCol("categories", DEMO.categories), fetchCol("growItems", DEMO.growItems), fetchCol("banners", DEMO.banners),
     fetchCol("catalog", []), fetchCol("serviceOfferings", [])
   ]);
-  const [plans, billing] = await Promise.all([fetchCol("plans", []), fetchCol("billing", [])]);
+  const [plans, billing, payments] = await Promise.all([fetchCol("plans", []), fetchCol("billing", []), fetchCol("payments", [])]);
   await loadBannerSettings();
-  Object.assign(DATA, { stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings, plans, billing });
+  Object.assign(DATA, { stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings, plans, billing, payments });
   PENDING = [...stores.filter(x => !x.approved).map(x => ({ ...x, _col: "stores" })), ...services.filter(x => !x.approved).map(x => ({ ...x, _col: "services" }))];
   render();
 }
@@ -172,11 +172,17 @@ function render() {
        <button class="mini" onclick="toggleField('products','${p.id}','inStock',${!p.inStock})">${p.inStock ? "Mark out" : "In stock"}</button>
        <button class="reject" onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("") || empty(7);
 
-  document.getElementById("catalogRows").innerHTML = (D.catalog || []).map(c =>
-    `<tr><td>${img(c.imageUrl)}</td><td>${c.name}</td><td><span class="tag info">${c.type}</span></td><td>${c.category || "-"}</td>
-     <td>${c.suggestedMrp ? money(c.suggestedMrp) : "-"}</td>
+  const qcat = filt("q-catalog"), fcat = document.getElementById("f-catalog")?.value || "all";
+  const catRows = (D.catalog || []).filter(c =>
+    (fcat === "all" || c.type === fcat) &&
+    (qcat === "" || (c.name || "").toLowerCase().includes(qcat) || (c.category || "").toLowerCase().includes(qcat)));
+  const cc = document.getElementById("catalogCount"); if (cc) cc.textContent = `· ${catRows.length} item(s)`;
+  document.getElementById("catalogRows").innerHTML = catRows.map(c =>
+    `<tr><td>${img(c.imageUrl)}</td><td>${c.name}</td>
+     <td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type}</span></td><td>${c.category || "-"}</td>
+     <td>${c.unit || "-"}</td><td>${c.suggestedMrp ? money(c.suggestedMrp) : "-"}</td>
      <td class="row-actions"><button class="mini" onclick="editCatalogItem('${c.id}')">Edit</button>
-     <button class="reject" onclick="del('catalog','${c.id}')">Delete</button></td></tr>`).join("") || empty(6);
+     <button class="reject" onclick="del('catalog','${c.id}')">Delete</button></td></tr>`).join("") || empty(7);
 
   document.getElementById("catRows").innerHTML = (D.categories || []).map(c =>
     `<tr><td>${c.name}</td><td><span class="tag info">${c.type || "store"}</span></td>
@@ -255,16 +261,21 @@ function renderBilling() {
   const isActive = b => b.subActive && (!b.nextDueAt || (b.nextDueAt.seconds ? b.nextDueAt.seconds * 1000 : 0) >= now);
 
   // summary
-  let activation = 0, mrr = 0, active = 0, pending = 0;
+  let activation = 0, mrr = 0, active = 0, pending = 0, overdue = 0;
   sellers.forEach(s => {
     const b = billed(s.uid);
     if (b.activationPaid) activation += (b.activationAmount || 0); else pending++;
     if (isActive(b)) { active++; mrr += (b.monthlyFee || 0); }
+    else if (b.lastPaidAt) overdue++;
   });
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const thisMonth = (DATA.payments || []).filter(p => p.at && (p.at.seconds * 1000) >= monthStart.getTime()).reduce((s, p) => s + (p.amount || 0), 0);
   document.getElementById("b-activation").textContent = money(activation);
   document.getElementById("b-mrr").textContent = money(mrr);
   document.getElementById("b-active").textContent = num(active);
   document.getElementById("b-pending").textContent = num(pending);
+  const bm = document.getElementById("b-month"); if (bm) bm.textContent = money(thisMonth);
+  const bo = document.getElementById("b-overdue"); if (bo) bo.textContent = num(overdue);
 
   const q = filt("q-bill"), f = document.getElementById("f-bill")?.value || "all";
   const rows = sellers.filter(s => {
@@ -281,17 +292,65 @@ function renderBilling() {
     const act = b.activationPaid
       ? `<span class="tag ok">Paid ${money(b.activationAmount)}</span><div style="font-size:11px;color:var(--muted)">${fmtTs(b.activationAt)}</div>`
       : `<span class="tag wait">Pending</span>`;
+    const due = b.nextDueAt ? (b.nextDueAt.seconds * 1000) : 0;
+    const days = due ? Math.ceil((due - now) / 86400000) : null;
     const sub = isActive(b)
-      ? `<span class="tag ok">Active</span><div style="font-size:11px;color:var(--muted)">till ${fmtTs(b.nextDueAt)}</div>`
-      : (b.lastPaidAt ? `<span class="tag no">Expired</span><div style="font-size:11px;color:var(--muted)">due ${fmtTs(b.nextDueAt)}</div>` : `<span class="tag wait">None</span>`);
+      ? `<span class="tag ok">Active</span><div style="font-size:11px;color:var(--muted)">till ${fmtTs(b.nextDueAt)}${days != null ? ` · ${days}d left` : ""}</div>`
+      : (b.lastPaidAt ? `<span class="tag no">Expired</span><div style="font-size:11px;color:#fca5a5">due ${fmtTs(b.nextDueAt)}${days != null ? ` · ${Math.abs(days)}d overdue` : ""}</div>` : `<span class="tag wait">None</span>`);
     return `<tr><td>${s.name || "-"}</td><td><span class="tag info">${s.type}</span></td><td>${s.category || "-"}</td>
       <td>${act}</td><td>${sub}</td>
       <td class="row-actions">
         ${b.activationPaid ? "" : `<button class="approve" onclick="markActivation('${s.uid}')">Activate</button>`}
-        <button class="mini" onclick="recordMonthly('${s.uid}')">Record payment</button>
+        <button class="mini" onclick="recordMonthly('${s.uid}')">Record</button>
+        <button class="mini" onclick="viewHistory('${s.uid}')">History</button>
+        ${(!isActive(b) && b.activationPaid) ? `<button class="mini" onclick="sendDueReminder('${s.uid}')">Remind</button>` : ""}
         ${isActive(b) ? `<button class="reject" onclick="expireSub('${s.uid}')">Expire</button>` : ""}
       </td></tr>`;
   }).join("") || empty(6);
+}
+
+function recordPayment(uid, name, kind, amount) {
+  return db.collection("payments").add({
+    uid, name: name || "", type: kind, amount,
+    at: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+function viewHistory(uid) {
+  const s = sellerList().find(x => x.uid === uid);
+  const list = (DATA.payments || []).filter(p => p.uid === uid)
+    .sort((a, b) => ((b.at?.seconds || 0) - (a.at?.seconds || 0)));
+  const rows = list.length ? list.map(p =>
+    `<tr><td>${p.type}</td><td>${money(p.amount)}</td><td style="color:var(--muted)">${fmtTs(p.at)}</td></tr>`).join("")
+    : `<tr><td colspan="3" class="empty">No payments yet</td></tr>`;
+  const total = list.reduce((t, p) => t + (p.amount || 0), 0);
+  modal(`<h3>Payment history</h3><p style="color:var(--muted);font-size:13px">${s?.name || ""} · total ${money(total)}</p>
+    <table style="margin-top:10px"><thead><tr><th>Type</th><th>Amount</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Close</button></div>`);
+}
+async function sendDueReminder(uid) {
+  const s = sellerList().find(x => x.uid === uid); const b = billingFor(uid);
+  if (!LIVE) { toast("(demo) reminder sent", "ok"); return; }
+  try {
+    await db.collection("notifications").add({
+      toUid: uid, title: "Subscription due",
+      body: `Hi ${s?.name || ""}, your LocalKart subscription is due. Please renew to keep your listings live.`,
+      read: false, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast("Reminder sent", "ok");
+  } catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+function exportBilling() {
+  const sellers = sellerList();
+  const head = ["Seller", "Type", "Category", "ActivationPaid", "ActivationAmount", "SubActive", "MonthlyFee", "NextDue"];
+  const lines = [head.join(",")];
+  sellers.forEach(s => {
+    const b = billingFor(s.uid);
+    const nd = b.nextDueAt ? new Date(b.nextDueAt.seconds * 1000).toISOString().slice(0, 10) : "";
+    lines.push([`"${(s.name || "").replace(/"/g, "'")}"`, s.type, s.category || "", !!b.activationPaid, b.activationAmount || 0, !!b.subActive, b.monthlyFee || 0, nd].join(","));
+  });
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = "localkart-billing.csv"; a.click();
 }
 
 let editPlanId = null;
@@ -329,6 +388,7 @@ async function saveActivation(uid) {
       activationPaid: true, activationAmount: amt, activationAt: firebase.firestore.FieldValue.serverTimestamp(),
       monthlyFee: plan?.monthlyFee || 0
     }, { merge: true });
+    await recordPayment(uid, s?.name, "activation", amt);
     toast("Activation recorded", "ok"); closeModal(); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); }
 }
@@ -353,6 +413,7 @@ async function saveMonthly(uid) {
       subActive: true, monthlyFee: amt, lastPaidAt: firebase.firestore.FieldValue.serverTimestamp(),
       nextDueAt: firebase.firestore.Timestamp.fromDate(base)
     }, { merge: true });
+    await recordPayment(uid, s?.name, "monthly", amt);
     toast("Payment recorded", "ok"); closeModal(); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); }
 }

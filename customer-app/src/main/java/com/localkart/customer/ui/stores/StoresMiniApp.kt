@@ -98,7 +98,7 @@ private fun StoresHome(vm: StoresViewModel = viewModel(), onOpenStore: (Store) -
         .sortedBy { it.second ?: Double.MAX_VALUE }
 
     LazyColumn {
-        item { LocationBar(user.area, radius, {}, { radius = it }) }
+        item { LocationBarPro(radius) { radius = it } }
         item { SearchField(query, { query = it }, "Search shops & categories") }
         item { CategoryChips(storeCategories, vm.category) { vm.select(it) } }
         item { LiveBannerSlider("customer", demoBanners) }
@@ -257,7 +257,7 @@ private fun NearbyStores(vm: StoresViewModel = viewModel(), onOpenStore: (Store)
         .sortedBy { it.second ?: Double.MAX_VALUE }
 
     LazyColumn {
-        item { LocationBar(user.area, radius, {}, { radius = it }) }
+        item { LocationBarPro(radius) { radius = it } }
         item { LiveBannerSlider("customer", demoBanners) }
         item { SectionHeader("Categories") }
         item {

@@ -46,4 +46,15 @@ object LocationUtil {
             null
         }
     }
+
+    /** Forward geocode a typed place/area name -> (lat, lng, display name), or null. */
+    fun geocode(context: Context, query: String): Triple<Double, Double, String>? {
+        return try {
+            val a = Geocoder(context, Locale.getDefault()).getFromLocationName(query, 1)?.firstOrNull() ?: return null
+            val name = a.subLocality ?: a.locality ?: a.subAdminArea ?: query
+            Triple(a.latitude, a.longitude, name)
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

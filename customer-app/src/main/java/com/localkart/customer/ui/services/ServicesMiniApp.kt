@@ -89,7 +89,7 @@ private fun ServicesHome(
         .sortedBy { it.second ?: Double.MAX_VALUE }
 
     LazyColumn {
-        item { LocationBar(user.area, radius, {}, { radius = it }) }
+        item { LocationBarPro(radius) { radius = it } }
         item { SearchField(query, { query = it }, "Search services & providers") }
         item { CategoryChips(serviceCategories, vm.category) { vm.select(it) } }
         item { LiveBannerSlider("customer", demoBanners) }

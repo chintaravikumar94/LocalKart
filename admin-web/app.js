@@ -223,7 +223,7 @@ function render() {
   const ctc = document.getElementById("catCount"); if (ctc) ctc.textContent = `· ${catList.length} categor${catList.length === 1 ? "y" : "ies"}`;
   document.getElementById("catRows").innerHTML = catList.map(c => {
     const used = countCategoryUsage(c.name, c.type);
-    return `<tr><td>${c.name}</td><td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type || "store"}</span></td>
+    return `<tr><td>${c.iconUrl ? img(c.iconUrl) + " " : ""}${c.name}</td><td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type || "store"}</span></td>
      <td>${used}</td>
      <td class="row-actions">
        <button class="mini" onclick="editCategory('${c.id}')">Edit</button>
@@ -562,18 +562,25 @@ function openCategory(c) {
   modal(`<h3>${c ? "Edit" : "Add"} category</h3>
     <label>Name</label><input id="c-name" placeholder="e.g. groceries" value="${c?.name || ""}">
     <label>Type</label><select id="c-type">${opt("store", "Store", type)}${opt("service", "Service", type)}</select>
-    <label>Icon URL (optional)</label><input id="c-icon" placeholder="https://…" value="${c?.iconUrl || ""}">
-    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveCategory()">Save</button></div>`);
+    <label>Icon image (optional)</label><input id="c-file" type="file" accept="image/*" onchange="previewFile('c-file','c-prev')">
+    <img id="c-prev" src="${c?.iconUrl || ""}" style="display:${c?.iconUrl ? "block" : "none"};width:88px;height:88px;object-fit:cover;border-radius:14px;margin-top:8px">
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="c-save" onclick="saveCategory()">Save</button></div>`);
 }
 async function saveCategory() {
   const name = val("c-name").trim(); if (!name) return toast("Name required", "bad");
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
-  const data = { name, type: val("c-type"), iconUrl: val("c-icon").trim() };
+  const btn = document.getElementById("c-save"); if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
   try {
-    if (editCatId) { await db.collection("categories").doc(editCatId).set(data, { merge: true }); toast("Category updated", "ok"); }
-    else { await db.collection("categories").add(data); toast("Category added", "ok"); }
+    const iconUrl = await uploadImage("c-file", "categoryIcons");
+    const data = { name, type: val("c-type") };
+    if (iconUrl) data.iconUrl = iconUrl;
+    if (editCatId) {
+      await db.collection("categories").doc(editCatId).set(data, { merge: true }); toast("Category updated", "ok");
+    } else {
+      await db.collection("categories").add({ ...data, iconUrl: iconUrl || "" }); toast("Category added", "ok");
+    }
     editCatId = null; closeModal(); await loadAll();
-  } catch (e) { toast("Failed: " + e.message, "bad"); }
+  } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
 }
 const DEFAULT_STORE_CATS = [
   "groceries", "vegetables_fruits", "kirana", "supermarket", "bakery", "sweets", "dairy",

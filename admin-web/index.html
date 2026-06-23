@@ -70,6 +70,9 @@
   .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:18px;box-shadow:var(--elev)}
   .panel h3{padding:14px 18px;border-bottom:1px solid var(--line);font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:8px}
   canvas{max-height:260px}
+  .tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .tab{background:var(--card);color:var(--muted);border:1px solid var(--line);padding:9px 20px;border-radius:22px;font-size:13px;font-weight:600;box-shadow:var(--elev)}
+  .tab.on{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-color:transparent}
   .toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
   .toolbar input,.toolbar select{margin:0;max-width:280px;width:auto}
 
@@ -177,7 +180,13 @@
       <div class="panel"><h3>Recent sellers</h3><table><thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Rating</th><th>Status</th></tr></thead><tbody id="recent"></tbody></table></div>
     </section>
 
-    <section class="view" id="view-approvals"><div class="panel"><h3>Pending approvals</h3>
+    <section class="view" id="view-approvals">
+      <div class="tabs">
+        <button class="tab on" onclick="setTab('approvals','all',this)">All</button>
+        <button class="tab" onclick="setTab('approvals','store',this)">Stores</button>
+        <button class="tab" onclick="setTab('approvals','service',this)">Services</button>
+      </div>
+      <div class="panel"><h3>Pending approvals</h3>
       <table><thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Area</th><th>Action</th></tr></thead><tbody id="approvalRows"></tbody></table></div></section>
 
     <section class="view" id="view-stores"><div class="toolbar"><input id="q-stores" placeholder="Search stores…" oninput="render()"></div>
@@ -187,9 +196,13 @@
       <div class="panel"><h3>Service Providers</h3><table><thead><tr><th></th><th>Name</th><th>Category</th><th>Rating</th><th>Available</th><th>Status</th><th>Actions</th></tr></thead><tbody id="svcRows"></tbody></table></div></section>
 
     <section class="view" id="view-catalog">
+      <div class="tabs">
+        <button class="tab on" onclick="setTab('catalog','all',this)">All</button>
+        <button class="tab" onclick="setTab('catalog','product',this)">Products</button>
+        <button class="tab" onclick="setTab('catalog','service',this)">Services</button>
+      </div>
       <div class="toolbar">
         <input id="q-catalog" placeholder="Search catalog…" oninput="render()">
-        <select id="f-catalog" onchange="render()"><option value="all">All types</option><option value="product">Products</option><option value="service">Services</option></select>
       </div>
       <div class="panel"><h3>Master Catalog <span id="catalogCount" class="crumb"></span> <button class="add" onclick="openCatalogItem()">＋ Add item</button></h3>
         <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Company-defined items. Sellers pick from these and set their own price.</div>
@@ -222,6 +235,11 @@
         <div style="padding:14px 18px;color:var(--muted);font-size:13px">Add an admin by their User UID (Authentication → Users).</div></div></section>
 
     <section class="view" id="view-plans">
+      <div class="tabs">
+        <button class="tab on" onclick="setTab('plans','all',this)">All</button>
+        <button class="tab" onclick="setTab('plans','store',this)">Stores</button>
+        <button class="tab" onclick="setTab('plans','service',this)">Services</button>
+      </div>
       <div class="panel"><h3>Category Plans <button class="add" onclick="openPlan()">＋ Add plan</button></h3>
         <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Set the one-time activation fee and monthly subscription for each business / service category.</div>
         <table><thead><tr><th>Category</th><th>Type</th><th>Activation (one-time)</th><th>Monthly</th><th>Action</th></tr></thead><tbody id="planRows"></tbody></table></div></section>
@@ -234,6 +252,11 @@
         <div class="kpi"><div class="ic">⏳</div><div class="n" id="b-pending">—</div><div class="l">Activation pending</div><div class="bar"></div></div>
         <div class="kpi"><div class="ic">📆</div><div class="n" id="b-month">—</div><div class="l">Collected this month</div><div class="bar"></div></div>
         <div class="kpi"><div class="ic">⚠️</div><div class="n" id="b-overdue">—</div><div class="l">Overdue subscriptions</div><div class="bar"></div></div>
+      </div>
+      <div class="tabs">
+        <button class="tab on" onclick="setTab('billing','all',this)">All</button>
+        <button class="tab" onclick="setTab('billing','store',this)">Stores</button>
+        <button class="tab" onclick="setTab('billing','service',this)">Services</button>
       </div>
       <div class="toolbar">
         <input id="q-bill" placeholder="Search sellers…" oninput="render()">
@@ -278,6 +301,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

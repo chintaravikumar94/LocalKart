@@ -16,6 +16,18 @@ try {
   }
 } catch (e) { console.warn("init skipped", e); }
 
+/* ---------- tabs (All / Stores / Services) ---------- */
+const TAB = { plans: "all", approvals: "all", billing: "all", catalog: "all" };
+function setTab(key, val, el) {
+  TAB[key] = val;
+  if (el) { el.parentElement.querySelectorAll(".tab").forEach(b => b.classList.remove("on")); el.classList.add("on"); }
+  render();
+}
+// store/service matchers
+function matchStore(t) { return t === "store" || t === "stores" || t === "both"; }
+function matchService(t) { return t === "service" || t === "services" || t === "both"; }
+function tabKeepType(tab, type) { return tab === "all" || (tab === "store" && matchStore(type)) || (tab === "service" && matchService(type)); }
+
 /* ---------- theme ---------- */
 function applyTheme(t) {
   document.body.classList.toggle("dark", t === "dark");
@@ -153,7 +165,8 @@ function render() {
   document.getElementById("recent").innerHTML = [...(D.stores || []), ...(D.services || [])].slice(0, 7).map(s =>
     `<tr><td>${s.name}</td><td>${svcNames.has(s.name) ? "Service" : "Store"}</td><td>${s.category || "-"}</td><td>${star(s.rating)}</td><td>${tag(s.approved)}</td></tr>`).join("") || empty(5);
 
-  document.getElementById("approvalRows").innerHTML = PENDING.length ? PENDING.map((p, i) =>
+  const pend = PENDING.filter(p => TAB.approvals === "all" || (TAB.approvals === "store" && p._col === "stores") || (TAB.approvals === "service" && p._col === "services"));
+  document.getElementById("approvalRows").innerHTML = pend.length ? pend.map((p, i) =>
     `<tr><td>${p.name}</td><td>${p._col === "services" ? "Service" : "Store"}</td><td>${p.category || "-"}</td><td>${p.address || "-"}</td>
      <td class="row-actions"><button class="approve" onclick="setApprovalById('${p._col}','${p.id}',true)">Approve</button>
      <button class="reject" onclick="setApprovalById('${p._col}','${p.id}',false)">Reject</button></td></tr>`).join("")
@@ -172,9 +185,9 @@ function render() {
        <button class="mini" onclick="toggleField('products','${p.id}','inStock',${!p.inStock})">${p.inStock ? "Mark out" : "In stock"}</button>
        <button class="reject" onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("") || empty(7);
 
-  const qcat = filt("q-catalog"), fcat = document.getElementById("f-catalog")?.value || "all";
+  const qcat = filt("q-catalog");
   const catRows = (D.catalog || []).filter(c =>
-    (fcat === "all" || c.type === fcat) &&
+    (TAB.catalog === "all" || c.type === TAB.catalog) &&
     (qcat === "" || (c.name || "").toLowerCase().includes(qcat) || (c.category || "").toLowerCase().includes(qcat)));
   const cc = document.getElementById("catalogCount"); if (cc) cc.textContent = `· ${catRows.length} item(s)`;
   document.getElementById("catalogRows").innerHTML = catRows.map(c =>
@@ -250,8 +263,9 @@ function sellerList() {
 function billingFor(uid) { return (DATA.billing || []).find(b => b.id === uid) || {}; }
 
 function renderBilling() {
-  // Plans table
-  document.getElementById("planRows").innerHTML = (DATA.plans || []).map(p =>
+  // Plans table (filtered by All / Stores / Services tab)
+  const planRows = (DATA.plans || []).filter(p => tabKeepType(TAB.plans, p.type || "both"));
+  document.getElementById("planRows").innerHTML = planRows.map(p =>
     `<tr><td>${p.category}</td><td><span class="tag info">${p.type || "both"}</span></td><td>${money(p.activationFee)}</td><td>${money(p.monthlyFee)} / mo</td>
      <td class="row-actions"><button class="mini" onclick="editPlan('${p.id}')">Edit</button><button class="reject" onclick="del('plans','${p.id}')">Delete</button></td></tr>`).join("") || empty(5);
 
@@ -279,6 +293,7 @@ function renderBilling() {
 
   const q = filt("q-bill"), f = document.getElementById("f-bill")?.value || "all";
   const rows = sellers.filter(s => {
+    if (!tabKeepType(TAB.billing, s.type)) return false;
     if (q && !(s.name || "").toLowerCase().includes(q)) return false;
     const b = billed(s.uid);
     if (f === "actpending") return !b.activationPaid;

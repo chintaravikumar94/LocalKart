@@ -149,12 +149,12 @@ fun BannerSlider(imageUrls: List<String>, dwellMillis: Int = 4000) {
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         HorizontalPager(
             state = pager,
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            pageSpacing = 12.dp,
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            pageSpacing = 10.dp,
             modifier = Modifier.fillMaxWidth()
         ) { page ->
             Box(
-                Modifier.fillMaxWidth().aspectRatio(2f).clip(RoundedCornerShape(18.dp))
+                Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(18.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 AsyncImage(
@@ -185,7 +185,7 @@ fun BannerSlider(imageUrls: List<String>, dwellMillis: Int = 4000) {
         Spacer(Modifier.height(8.dp))
         LinearProgressIndicator(
             progress = { progress },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(3.dp).clip(RoundedCornerShape(50)),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(3.dp).clip(RoundedCornerShape(50)),
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
     }

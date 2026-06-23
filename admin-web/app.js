@@ -47,6 +47,18 @@ function modal(html) { document.getElementById("modalBox").innerHTML = html; doc
 function closeModal() { document.getElementById("modalBg").classList.remove("open"); }
 document.getElementById("modalBg").addEventListener("click", e => { if (e.target.id === "modalBg") closeModal(); });
 function opt(v, label, cur) { return `<option value="${v}" ${v === cur ? "selected" : ""}>${label}</option>`; }
+/** Build category <option>s from the managed Categories list (grouped by type). */
+function categoryOptions(cur) {
+  const cats = DATA.categories || [];
+  if (!cats.length) return `<option value="${cur || ""}">${cur || "— add categories first —"}</option>`;
+  let html = "";
+  if (cur && !cats.some(c => c.name === cur)) html += opt(cur, cur + " (current)", cur);
+  const store = cats.filter(c => c.type === "store");
+  const svc = cats.filter(c => c.type === "service");
+  if (store.length) html += `<optgroup label="Store categories">${store.map(c => opt(c.name, c.name, cur)).join("")}</optgroup>`;
+  if (svc.length) html += `<optgroup label="Service categories">${svc.map(c => opt(c.name, c.name, cur)).join("")}</optgroup>`;
+  return html;
+}
 function val(id) { return (document.getElementById(id)?.value || "").trim(); }
 const tag = ok => ok ? '<span class="tag ok">Approved</span>' : '<span class="tag wait">Pending</span>';
 const num = n => (n || 0).toLocaleString("en-IN");
@@ -373,7 +385,7 @@ function editPlan(id) { openPlan((DATA.plans || []).find(x => x.id === id)); }
 function openPlan(p) {
   editPlanId = p?.id || null; const type = p?.type || "store";
   modal(`<h3>${p ? "Edit" : "Add"} category plan</h3>
-    <label>Category</label><input id="pl-cat" value="${esc(p?.category)}" placeholder="e.g. groceries / electrician">
+    <label>Category</label><select id="pl-cat">${categoryOptions(p?.category)}</select>
     <label>Type</label><select id="pl-type">${opt("store", "Store", type)}${opt("service", "Service", type)}${opt("both", "Both", type)}</select>
     <label>One-time activation fee (₹)</label><input id="pl-act" type="number" value="${p?.activationFee ?? ""}">
     <label>Monthly subscription (₹)</label><input id="pl-mon" type="number" value="${p?.monthlyFee ?? ""}">
@@ -518,6 +530,19 @@ async function saveCategory() {
   try { await db.collection("categories").add({ name, type: val("c-type"), iconUrl: "" }); toast("Category added", "ok"); closeModal(); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
+async function seedDefaultCategories() {
+  if (!LIVE) { toast("(demo) loaded", "ok"); return; }
+  const store = ["groceries", "mobile_repairing", "fancy", "net_center", "meeseva", "household"];
+  const svc = ["plumber", "electrician", "carpenter", "gardener", "mechanic", "housekeeping", "cook"];
+  try {
+    const have = new Set((DATA.categories || []).map(c => c.name + "|" + c.type));
+    let batch = db.batch(), n = 0;
+    store.forEach(name => { if (!have.has(name + "|store")) { batch.set(db.collection("categories").doc(), { name, type: "store", iconUrl: "" }); n++; } });
+    svc.forEach(name => { if (!have.has(name + "|service")) { batch.set(db.collection("categories").doc(), { name, type: "service", iconUrl: "" }); n++; } });
+    if (n) await batch.commit();
+    toast(`Added ${n} default categories`, "ok"); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); }
+}
 
 /* ---------- master catalog ---------- */
 let editCatalogId = null;
@@ -527,7 +552,7 @@ function openCatalogItem(c) {
   modal(`<h3>${c ? "Edit" : "Add"} catalog item</h3>
     <label>Name</label><input id="ci-name" value="${esc(c?.name)}" placeholder="e.g. Rice 5kg">
     <label>Type</label><select id="ci-type">${opt("product", "Product", type)}${opt("service", "Service", type)}</select>
-    <label>Category</label><input id="ci-cat" value="${esc(c?.category)}" placeholder="e.g. groceries / plumber">
+    <label>Category</label><select id="ci-cat">${categoryOptions(c?.category)}</select>
     <label>Unit (optional)</label><input id="ci-unit" value="${esc(c?.unit)}" placeholder="e.g. 5 kg, per visit">
     <label>Suggested MRP (₹)</label><input id="ci-mrp" type="number" value="${c?.suggestedMrp ?? ""}">
     <label>Description (optional)</label><input id="ci-desc" value="${esc(c?.description)}">

@@ -212,7 +212,7 @@
       <div class="panel"><h3>Seller Products</h3><table><thead><tr><th></th><th>Name</th><th>Price</th><th>MRP</th><th>In stock</th><th>Status</th><th>Action</th></tr></thead><tbody id="prodRows"></tbody></table></div></section>
 
     <section class="view" id="view-categories">
-      <div class="panel"><h3>Categories <button class="add" onclick="openCategory()">＋ Add</button></h3>
+      <div class="panel"><h3>Categories <span><button class="ghost" onclick="seedDefaultCategories()" style="margin-right:8px">Load defaults</button><button class="add" onclick="openCategory()">＋ Add</button></span></h3>
         <table><thead><tr><th>Name</th><th>Type</th><th>Action</th></tr></thead><tbody id="catRows"></tbody></table></div></section>
 
     <section class="view" id="view-orders"><div class="toolbar"><input id="q-ord" placeholder="Search orders…" oninput="render()"></div>
@@ -301,6 +301,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=12"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>

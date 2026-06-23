@@ -146,39 +146,48 @@ fun BannerSlider(imageUrls: List<String>, dwellMillis: Int = 4000) {
         pager.animateScrollToPage(next, animationSpec = tween(600))
     }
 
-    Column(Modifier.padding(vertical = 8.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         HorizontalPager(
             state = pager,
             contentPadding = PaddingValues(horizontal = 16.dp),
-            pageSpacing = 10.dp,
-            modifier = Modifier.fillMaxWidth().height(160.dp)
+            pageSpacing = 12.dp,
+            modifier = Modifier.fillMaxWidth()
         ) { page ->
-            AsyncImage(
-                model = imageUrls[page],
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0x222563EB), Color(0x22F59E0B))))
-            )
+            Box(
+                Modifier.fillMaxWidth().aspectRatio(2f).clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                AsyncImage(
+                    model = imageUrls[page],
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
-        Spacer(Modifier.height(8.dp))
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(3.dp)
-        )
+        Spacer(Modifier.height(10.dp))
+        // worm-style dots: active page is an elongated pill
         Row(
-            Modifier.fillMaxWidth().padding(top = 6.dp),
-            horizontalArrangement = Arrangement.Center
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             repeat(imageUrls.size) { i ->
                 val active = i == pager.currentPage
                 Box(
-                    Modifier.padding(3.dp).size(if (active) 8.dp else 6.dp)
+                    Modifier.padding(horizontal = 3.dp)
+                        .height(6.dp).width(if (active) 20.dp else 6.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (active) MaterialTheme.colorScheme.primary else Color.Gray)
+                        .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
                 )
             }
         }
+        Spacer(Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(3.dp).clip(RoundedCornerShape(50)),
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     }
 }
 

@@ -124,23 +124,36 @@ fun SellerBanners(urls: List<String>, dwellMillis: Int = 4000) {
         repeat(steps) { delay((dwellMillis / steps).toLong()); progress = (it + 1) / steps.toFloat() }
         pager.animateScrollToPage((pager.currentPage + 1) % urls.size, animationSpec = tween(600))
     }
-    Column(Modifier.padding(vertical = 8.dp)) {
-        HorizontalPager(pager, contentPadding = PaddingValues(horizontal = 16.dp), pageSpacing = 10.dp,
-            modifier = Modifier.fillMaxWidth().height(140.dp)) { page ->
+    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+        HorizontalPager(pager, contentPadding = PaddingValues(horizontal = 16.dp), pageSpacing = 12.dp,
+            modifier = Modifier.fillMaxWidth()) { page ->
             val url = urls[page]
-            if (url.startsWith("http")) {
-                coil.compose.AsyncImage(
-                    url, "Banner",
-                    Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                )
-            } else {
-                Box(Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xFF7C3AED), Color(0xFF2563EB)))))
+            Box(Modifier.fillMaxWidth().aspectRatio(2.2f).clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)) {
+                if (url.startsWith("http")) {
+                    coil.compose.AsyncImage(
+                        url, "Banner", Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    Box(Modifier.fillMaxSize().background(
+                        Brush.horizontalGradient(listOf(Color(0xFF7C3AED), Color(0xFF2563EB)))))
+                }
             }
         }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            repeat(urls.size) { i ->
+                val active = i == pager.currentPage
+                Box(Modifier.padding(horizontal = 3.dp).height(6.dp).width(if (active) 20.dp else 6.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant))
+            }
+        }
+        Spacer(Modifier.height(8.dp))
         LinearProgressIndicator(progress = { progress },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).height(3.dp))
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(3.dp).clip(RoundedCornerShape(50)),
+            trackColor = MaterialTheme.colorScheme.surfaceVariant)
     }
 }
 
@@ -334,18 +347,33 @@ fun SellerNotifications() {
 
 @Composable
 fun SellerMore() {
-    val items = listOf("Account", "Payouts", "Help & Support", "Terms", "Logout")
+    var screen by remember { mutableStateOf<String?>(null) }
+    when (screen) {
+        "account" -> { SellerSubScreen("My Account", { screen = null }) { pad -> Box(Modifier.padding(pad)) { SellerProfileScreen() } }; return }
+        "payouts" -> { PayoutsScreen { screen = null }; return }
+        "support" -> { SellerSupportScreen { screen = null }; return }
+        "terms" -> { TermsScreen { screen = null }; return }
+    }
+    data class M(val label: String, val icon: ImageVector, val key: String)
+    val items = listOf(
+        M("My Account", Icons.Default.Person, "account"),
+        M("Payouts", Icons.Default.AccountBalanceWallet, "payouts"),
+        M("Help & Support", Icons.Default.Help, "support"),
+        M("Terms & Policies", Icons.Default.Description, "terms")
+    )
     LazyColumn {
         item { Text("More", Modifier.padding(16.dp),
             style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
-        items(items) { label ->
-            if (label == "Logout") {
-                SellerLogoutItem()
-            } else {
-                ListItem(headlineContent = { Text(label) }, modifier = Modifier.clickable { })
-                HorizontalDivider()
-            }
+        items(items) { m ->
+            ListItem(
+                headlineContent = { Text(m.label) },
+                leadingContent = { Icon(m.icon, null, tint = MaterialTheme.colorScheme.primary) },
+                trailingContent = { Icon(Icons.Default.ChevronRight, null) },
+                modifier = Modifier.clickable { screen = m.key }
+            )
+            HorizontalDivider()
         }
+        item { SellerLogoutItem() }
     }
 }
 

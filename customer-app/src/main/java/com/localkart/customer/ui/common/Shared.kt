@@ -204,23 +204,34 @@ fun NotificationsScreen() {
 
 @Composable
 fun MoreScreen() {
+    var screen by remember { mutableStateOf<String?>(null) }
+    when (screen) {
+        "profile" -> { MoreProfileScreen { screen = null }; return }
+        "orders" -> { com.localkart.customer.ui.stores.OrderHistoryScreen(onBack = { screen = null }); return }
+        "address" -> { AddressScreen { screen = null }; return }
+        "support" -> { SupportScreen { screen = null }; return }
+        "about" -> { AboutScreen { screen = null }; return }
+    }
+
     var confirmLogout by remember { mutableStateOf(false) }
+    data class Item(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val key: String?)
     val items = listOf(
-        "My Profile" to Icons.Default.Person,
-        "Order History" to Icons.Default.Receipt,
-        "Addresses" to Icons.Default.LocationOn,
-        "Help & Support" to Icons.Default.Help,
-        "About LocalKart" to Icons.Default.Info,
-        "Logout" to Icons.Default.Logout
+        Item("My Profile", Icons.Default.Person, "profile"),
+        Item("My Orders", Icons.Default.Receipt, "orders"),
+        Item("My Location", Icons.Default.LocationOn, "address"),
+        Item("Help & Support", Icons.Default.Help, "support"),
+        Item("About LocalKart", Icons.Default.Info, "about"),
+        Item("Logout", Icons.Default.Logout, null)
     )
     LazyColumn {
         item { SectionHeader("More") }
-        items(items) { (label, icon) ->
-            val isLogout = label == "Logout"
+        items(items) { it0 ->
+            val isLogout = it0.key == null
             ListItem(
-                headlineContent = { Text(label, color = if (isLogout) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified) },
-                leadingContent = { Icon(icon, null, tint = if (isLogout) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified) },
-                modifier = Modifier.clickable { if (isLogout) confirmLogout = true }
+                headlineContent = { Text(it0.label, color = if (isLogout) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified) },
+                leadingContent = { Icon(it0.icon, null, tint = if (isLogout) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary) },
+                trailingContent = { if (!isLogout) Icon(Icons.Default.ChevronRight, null) },
+                modifier = Modifier.clickable { if (isLogout) confirmLogout = true else screen = it0.key }
             )
             HorizontalDivider()
         }

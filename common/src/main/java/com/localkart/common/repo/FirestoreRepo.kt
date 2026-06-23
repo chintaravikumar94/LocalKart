@@ -38,6 +38,16 @@ class FirestoreRepo {
     suspend fun productsForStore(storeId: String): List<Product> =
         db.collection("products").whereEqualTo("storeId", storeId).get().await().toObjects()
 
+    /** Products across several stores (e.g. all shops in a category). */
+    suspend fun productsForStores(storeIds: List<String>): List<Product> {
+        if (storeIds.isEmpty()) return emptyList()
+        val out = mutableListOf<Product>()
+        storeIds.chunked(10).forEach { chunk ->
+            out += db.collection("products").whereIn("storeId", chunk).get().await().toObjects<Product>()
+        }
+        return out
+    }
+
     suspend fun activeBanners(): List<Banner> =
         db.collection("banners").whereEqualTo("active", true).orderBy("order").get().await().toObjects()
 

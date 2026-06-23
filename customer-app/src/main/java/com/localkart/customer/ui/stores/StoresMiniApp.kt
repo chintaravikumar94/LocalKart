@@ -148,76 +148,73 @@ private fun StoreCard(name: String, category: String, rating: Double = 4.5, phot
     }
 }
 
-/** Flipkart-style category page: left rail of real stores, right pane of their products. */
+/** Flipkart-style category page: left = categories, right = shops then products. */
 @Composable
 private fun StoresCategory(onOpenStore: (Store) -> Unit = {}) {
     val repo = remember { FirestoreRepo() }
     val ctx = LocalContext.current
-    var stores by remember { mutableStateOf<List<Store>>(emptyList()) }
-    var selected by remember { mutableStateOf<Store?>(null) }
+    var allStores by remember { mutableStateOf<List<Store>>(emptyList()) }
+    var selectedCat by remember { mutableStateOf("all") }
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
     var loadingP by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        runCatching { repo.storesByCategory("all", onlyApproved = false) }
-            .onSuccess { stores = it; if (selected == null) selected = it.firstOrNull() }
+        runCatching { repo.storesByCategory("all", onlyApproved = false) }.onSuccess { allStores = it }
     }
-    LaunchedEffect(selected?.id) {
-        val s = selected ?: return@LaunchedEffect
+    val shops = if (selectedCat == "all") allStores else allStores.filter { it.category == selectedCat }
+    LaunchedEffect(selectedCat, allStores) {
+        val ids = shops.map { it.id }
+        if (ids.isEmpty()) { products = emptyList(); return@LaunchedEffect }
         loadingP = true
-        runCatching { repo.productsForStore(s.id) }.onSuccess { products = it }
+        runCatching { repo.productsForStores(ids) }.onSuccess { products = it }
         loadingP = false
     }
 
     Row(Modifier.fillMaxSize()) {
-        Surface(tonalElevation = 2.dp, modifier = Modifier.width(104.dp).fillMaxHeight()) {
+        // Left: category rail
+        Surface(tonalElevation = 2.dp, modifier = Modifier.width(98.dp).fillMaxHeight()) {
             LazyColumn {
-                items(stores, key = { it.id }) { s ->
-                    val active = s.id == selected?.id
+                items(storeCategories) { c ->
+                    val active = c == selectedCat
                     Column(
-                        Modifier.fillMaxWidth().clickablePad { selected = s }.padding(vertical = 12.dp, horizontal = 4.dp),
+                        Modifier.fillMaxWidth().clickablePad { selectedCat = c }.padding(vertical = 12.dp, horizontal = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Surface(shape = RoundedCornerShape(50),
-                            color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant) {
+                            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant) {
                             Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
-                                if (s.photoUrl.isNotBlank())
-                                    AsyncImage(s.photoUrl, s.name, Modifier.size(46.dp).clip(RoundedCornerShape(50)), contentScale = ContentScale.Crop)
-                                else Icon(Icons.Default.Storefront, null)
+                                Icon(Icons.Default.Category, null,
+                                    tint = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         Spacer(Modifier.height(4.dp))
-                        Text(s.name, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = TextAlign.Center)
+                        Text(c.replace('_', ' ').replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = TextAlign.Center,
+                            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
         }
+        // Right: shops + products
         LazyColumn(Modifier.weight(1f)) {
-            val s = selected
-            if (s == null) {
-                item { Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) { Text("No stores yet") } }
+            item { SectionHeader("Shops") }
+            if (shops.isEmpty()) {
+                item { Box(Modifier.fillMaxWidth().padding(30.dp), Alignment.Center) {
+                    Text("No shops in this category", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
             } else {
-                item {
-                    ElevatedCard(Modifier.fillMaxWidth().padding(12.dp)) {
-                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(s.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                Text(s.category.replace('_', ' '), style = MaterialTheme.typography.bodySmall)
-                            }
-                            FilledTonalButton(onClick = { onOpenStore(s) }) { Text("View") }
-                        }
-                    }
+                items(shops, key = { it.id }) { s ->
+                    StoreCard(s.name, s.category, s.rating, s.photoUrl) { onOpenStore(s) }
                 }
-                item { SectionHeader("Products") }
-                when {
-                    loadingP -> item { LoadingRow() }
-                    products.isEmpty() -> item { Box(Modifier.fillMaxWidth().padding(30.dp), Alignment.Center) {
-                        Text("No products yet", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
-                    else -> items(products.chunked(2)) { row ->
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp)) {
-                            row.forEach { p -> Box(Modifier.weight(1f)) { ProductTileLive(p, ctx) } }
-                            if (row.size == 1) Spacer(Modifier.weight(1f))
-                        }
+            }
+            item { SectionHeader("Products") }
+            when {
+                loadingP -> item { LoadingRow() }
+                products.isEmpty() -> item { Box(Modifier.fillMaxWidth().padding(30.dp), Alignment.Center) {
+                    Text("No products yet", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+                else -> items(products.chunked(2)) { row ->
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp)) {
+                        row.forEach { p -> Box(Modifier.weight(1f)) { ProductTileLive(p, ctx) } }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
             }

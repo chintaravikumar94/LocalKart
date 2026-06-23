@@ -16,6 +16,19 @@ try {
   }
 } catch (e) { console.warn("init skipped", e); }
 
+/* ---------- theme ---------- */
+function applyTheme(t) {
+  document.body.classList.toggle("dark", t === "dark");
+  const b = document.getElementById("themeBtn");
+  if (b) b.textContent = t === "dark" ? "☀️ Light" : "🌙 Dark";
+}
+function toggleTheme() {
+  const next = document.body.classList.contains("dark") ? "light" : "dark";
+  try { localStorage.setItem("lk-theme", next); } catch (e) {}
+  applyTheme(next);
+}
+applyTheme((() => { try { return localStorage.getItem("lk-theme"); } catch (e) { return null; } })() || "light");
+
 /* ---------- helpers ---------- */
 function toast(msg, kind) { const t = document.createElement("div"); t.className = "toast " + (kind || ""); t.textContent = msg; document.getElementById("toast").appendChild(t); setTimeout(() => t.remove(), 3200); }
 function modal(html) { document.getElementById("modalBox").innerHTML = html; document.getElementById("modalBg").classList.add("open"); }

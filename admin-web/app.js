@@ -17,7 +17,7 @@ try {
 } catch (e) { console.warn("init skipped", e); }
 
 /* ---------- tabs (All / Stores / Services) ---------- */
-const TAB = { plans: "all", approvals: "all", billing: "all", catalog: "all" };
+const TAB = { plans: "all", approvals: "all", billing: "all", catalog: "all", categories: "all" };
 function setTab(key, val, el) {
   TAB[key] = val;
   if (el) { el.parentElement.querySelectorAll(".tab").forEach(b => b.classList.remove("on")); el.classList.add("on"); }
@@ -219,8 +219,10 @@ function render() {
      <td class="row-actions"><button class="mini" onclick="editCatalogItem('${c.id}')">Edit</button>
      <button class="reject" onclick="del('catalog','${c.id}')">Delete</button></td></tr>`).join("") || empty(7);
 
-  document.getElementById("catRows").innerHTML = (D.categories || []).map(c =>
-    `<tr><td>${c.name}</td><td><span class="tag info">${c.type || "store"}</span></td>
+  const catList = (D.categories || []).filter(c => tabKeepType(TAB.categories, c.type || "store"));
+  const ctc = document.getElementById("catCount"); if (ctc) ctc.textContent = `· ${catList.length} categor${catList.length === 1 ? "y" : "ies"}`;
+  document.getElementById("catRows").innerHTML = catList.map(c =>
+    `<tr><td>${c.name}</td><td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type || "store"}</span></td>
      <td><button class="reject" onclick="del('categories','${c.id}')">Delete</button></td></tr>`).join("") || empty(3);
 
   const qo = filt("q-ord");
@@ -540,17 +542,31 @@ async function saveCategory() {
   try { await db.collection("categories").add({ name, type: val("c-type"), iconUrl: "" }); toast("Category added", "ok"); closeModal(); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
-async function seedDefaultCategories() {
+const DEFAULT_STORE_CATS = [
+  "groceries", "vegetables_fruits", "kirana", "supermarket", "bakery", "sweets", "dairy",
+  "meat_fish", "medical_pharmacy", "mobile_repairing", "mobile_accessories", "electronics",
+  "hardware", "stationery", "fancy", "gifts", "clothing", "footwear", "jewellery",
+  "cosmetics", "furniture", "net_center", "meeseva", "xerox_printing", "restaurant",
+  "tiffin_center", "household", "pet_supplies", "toys", "sports"
+];
+const DEFAULT_SERVICE_CATS = [
+  "plumber", "electrician", "carpenter", "painter", "mason", "welder", "gardener",
+  "mechanic", "ac_repair", "appliance_repair", "pest_control", "housekeeping", "cook",
+  "maid", "laundry", "car_wash", "packers_movers", "tutor", "beautician", "salon_spa",
+  "photographer", "driver", "tailor", "security_guard", "cctv_installation", "borewell"
+];
+async function seedDefaultCategories(kind) {
   if (!LIVE) { toast("(demo) loaded", "ok"); return; }
-  const store = ["groceries", "mobile_repairing", "fancy", "net_center", "meeseva", "household"];
-  const svc = ["plumber", "electrician", "carpenter", "gardener", "mechanic", "housekeeping", "cook"];
   try {
     const have = new Set((DATA.categories || []).map(c => c.name + "|" + c.type));
     let batch = db.batch(), n = 0;
-    store.forEach(name => { if (!have.has(name + "|store")) { batch.set(db.collection("categories").doc(), { name, type: "store", iconUrl: "" }); n++; } });
-    svc.forEach(name => { if (!have.has(name + "|service")) { batch.set(db.collection("categories").doc(), { name, type: "service", iconUrl: "" }); n++; } });
+    const add = (list, type) => list.forEach(name => {
+      if (!have.has(name + "|" + type)) { batch.set(db.collection("categories").doc(), { name, type, iconUrl: "" }); n++; }
+    });
+    if (kind !== "service") add(DEFAULT_STORE_CATS, "store");
+    if (kind !== "store") add(DEFAULT_SERVICE_CATS, "service");
     if (n) await batch.commit();
-    toast(`Added ${n} default categories`, "ok"); await loadAll();
+    toast(n ? `Added ${n} default categories` : "Already up to date", "ok"); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); }
 }
 

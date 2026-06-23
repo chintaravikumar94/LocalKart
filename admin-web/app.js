@@ -47,17 +47,27 @@ function modal(html) { document.getElementById("modalBox").innerHTML = html; doc
 function closeModal() { document.getElementById("modalBg").classList.remove("open"); }
 document.getElementById("modalBg").addEventListener("click", e => { if (e.target.id === "modalBg") closeModal(); });
 function opt(v, label, cur) { return `<option value="${v}" ${v === cur ? "selected" : ""}>${label}</option>`; }
-/** Build category <option>s from the managed Categories list (grouped by type). */
-function categoryOptions(cur) {
-  const cats = DATA.categories || [];
-  if (!cats.length) return `<option value="${cur || ""}">${cur || "— add categories first —"}</option>`;
+/** Category <option>s for a given kind ("store" | "service" | "all"). */
+function categoryOptions(cur, want) {
+  let cats = DATA.categories || [];
+  if (want && want !== "all") cats = cats.filter(c => c.type === want);
+  if (!cats.length) {
+    const kind = (want && want !== "all") ? want + " " : "";
+    return `<option value="${cur || ""}">${cur || "— add " + kind + "categories first —"}</option>`;
+  }
   let html = "";
   if (cur && !cats.some(c => c.name === cur)) html += opt(cur, cur + " (current)", cur);
-  const store = cats.filter(c => c.type === "store");
-  const svc = cats.filter(c => c.type === "service");
-  if (store.length) html += `<optgroup label="Store categories">${store.map(c => opt(c.name, c.name, cur)).join("")}</optgroup>`;
-  if (svc.length) html += `<optgroup label="Service categories">${svc.map(c => opt(c.name, c.name, cur)).join("")}</optgroup>`;
+  html += cats.map(c => opt(c.name, c.name, cur)).join("");
   return html;
+}
+function planWant(type) { return type === "store" ? "store" : type === "service" ? "service" : "all"; }
+function catItemWant(type) { return type === "service" ? "service" : "store"; }
+function onCatalogTypeChange() {
+  const w = catItemWant(val("ci-type"));
+  const el = document.getElementById("ci-cat"); if (el) el.innerHTML = categoryOptions("", w);
+}
+function onPlanTypeChange() {
+  const el = document.getElementById("pl-cat"); if (el) el.innerHTML = categoryOptions("", planWant(val("pl-type")));
 }
 function val(id) { return (document.getElementById(id)?.value || "").trim(); }
 const tag = ok => ok ? '<span class="tag ok">Approved</span>' : '<span class="tag wait">Pending</span>';
@@ -385,8 +395,8 @@ function editPlan(id) { openPlan((DATA.plans || []).find(x => x.id === id)); }
 function openPlan(p) {
   editPlanId = p?.id || null; const type = p?.type || "store";
   modal(`<h3>${p ? "Edit" : "Add"} category plan</h3>
-    <label>Category</label><select id="pl-cat">${categoryOptions(p?.category)}</select>
-    <label>Type</label><select id="pl-type">${opt("store", "Store", type)}${opt("service", "Service", type)}${opt("both", "Both", type)}</select>
+    <label>Type</label><select id="pl-type" onchange="onPlanTypeChange()">${opt("store", "Store", type)}${opt("service", "Service", type)}${opt("both", "Both", type)}</select>
+    <label>Category</label><select id="pl-cat">${categoryOptions(p?.category, planWant(type))}</select>
     <label>One-time activation fee (₹)</label><input id="pl-act" type="number" value="${p?.activationFee ?? ""}">
     <label>Monthly subscription (₹)</label><input id="pl-mon" type="number" value="${p?.monthlyFee ?? ""}">
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="savePlan()">Save</button></div>`);
@@ -551,8 +561,8 @@ function openCatalogItem(c) {
   editCatalogId = c?.id || null; const type = c?.type || "product";
   modal(`<h3>${c ? "Edit" : "Add"} catalog item</h3>
     <label>Name</label><input id="ci-name" value="${esc(c?.name)}" placeholder="e.g. Rice 5kg">
-    <label>Type</label><select id="ci-type">${opt("product", "Product", type)}${opt("service", "Service", type)}</select>
-    <label>Category</label><select id="ci-cat">${categoryOptions(c?.category)}</select>
+    <label>Type</label><select id="ci-type" onchange="onCatalogTypeChange()">${opt("product", "Product", type)}${opt("service", "Service", type)}</select>
+    <label>Category</label><select id="ci-cat">${categoryOptions(c?.category, catItemWant(type))}</select>
     <label>Unit (optional)</label><input id="ci-unit" value="${esc(c?.unit)}" placeholder="e.g. 5 kg, per visit">
     <label>Suggested MRP (₹)</label><input id="ci-mrp" type="number" value="${c?.suggestedMrp ?? ""}">
     <label>Description (optional)</label><input id="ci-desc" value="${esc(c?.description)}">

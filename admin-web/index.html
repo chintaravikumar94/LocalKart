@@ -139,6 +139,9 @@
       <div class="navgroup">People</div>
       <a data-view="customers"><span class="ico">👥</span> Customers</a>
       <a data-view="admins"><span class="ico">🛡️</span> Admins</a>
+      <div class="navgroup">Billing</div>
+      <a data-view="plans"><span class="ico">💳</span> Plans</a>
+      <a data-view="billing"><span class="ico">💰</span> Subscriptions</a>
       <div class="navgroup">Engage</div>
       <a data-view="notifications"><span class="ico">🔔</span> Notifications</a>
       <a data-view="grow"><span class="ico">🚀</span> Grow Items</a>
@@ -214,6 +217,31 @@
         <table><thead><tr><th>UID</th><th>Role</th><th>Action</th></tr></thead><tbody id="adminRows"></tbody></table>
         <div style="padding:14px 18px;color:var(--muted);font-size:13px">Add an admin by their User UID (Authentication → Users).</div></div></section>
 
+    <section class="view" id="view-plans">
+      <div class="panel"><h3>Category Plans <button class="add" onclick="openPlan()">＋ Add plan</button></h3>
+        <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Set the one-time activation fee and monthly subscription for each business / service category.</div>
+        <table><thead><tr><th>Category</th><th>Type</th><th>Activation (one-time)</th><th>Monthly</th><th>Action</th></tr></thead><tbody id="planRows"></tbody></table></div></section>
+
+    <section class="view" id="view-billing">
+      <div class="kpis">
+        <div class="kpi"><div class="ic">💰</div><div class="n" id="b-activation">—</div><div class="l">Activation collected</div><div class="bar"></div></div>
+        <div class="kpi"><div class="ic">🔁</div><div class="n" id="b-mrr">—</div><div class="l">Monthly revenue (MRR)</div><div class="bar"></div></div>
+        <div class="kpi"><div class="ic">✅</div><div class="n" id="b-active">—</div><div class="l">Active subscriptions</div><div class="bar"></div></div>
+        <div class="kpi"><div class="ic">⏳</div><div class="n" id="b-pending">—</div><div class="l">Activation pending</div><div class="bar"></div></div>
+      </div>
+      <div class="toolbar">
+        <input id="q-bill" placeholder="Search sellers…" oninput="render()">
+        <select id="f-bill" onchange="render()">
+          <option value="all">All sellers</option>
+          <option value="actpending">Activation pending</option>
+          <option value="actpaid">Activation paid</option>
+          <option value="active">Subscription active</option>
+          <option value="expired">Subscription expired</option>
+        </select>
+      </div>
+      <div class="panel"><h3>Shop owners &amp; service providers — activation &amp; subscription</h3>
+        <table><thead><tr><th>Seller</th><th>Type</th><th>Category</th><th>Activation</th><th>Subscription</th><th>Actions</th></tr></thead><tbody id="billRows"></tbody></table></div></section>
+
     <section class="view" id="view-notifications">
       <div class="panel"><h3>Send notification</h3>
         <div style="padding:18px;max-width:520px">
@@ -243,6 +271,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

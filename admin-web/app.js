@@ -76,7 +76,7 @@ const CRUMBS = {
   orders: "Customer orders", bookings: "Service bookings", appointments: "Store appointments",
   requests: "Service / job requests", reviews: "Customer feedback", customers: "Registered users",
   admins: "Console administrators", notifications: "Broadcast to apps", grow: "Seller promos", banners: "Home banners",
-  catalog: "Company master catalog"
+  catalog: "Company master catalog", plans: "Activation & subscription pricing", billing: "Who paid — activation & subscription"
 };
 document.getElementById("nav").addEventListener("click", e => {
   const a = e.target.closest("a"); if (!a) return;
@@ -120,8 +120,9 @@ async function loadAll() {
     fetchCol("admins", DEMO.admins), fetchCol("categories", DEMO.categories), fetchCol("growItems", DEMO.growItems), fetchCol("banners", DEMO.banners),
     fetchCol("catalog", []), fetchCol("serviceOfferings", [])
   ]);
+  const [plans, billing] = await Promise.all([fetchCol("plans", []), fetchCol("billing", [])]);
   await loadBannerSettings();
-  Object.assign(DATA, { stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings });
+  Object.assign(DATA, { stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings, plans, billing });
   PENDING = [...stores.filter(x => !x.approved).map(x => ({ ...x, _col: "stores" })), ...services.filter(x => !x.approved).map(x => ({ ...x, _col: "services" }))];
   render();
 }
@@ -219,7 +220,146 @@ function render() {
      <button class="mini" onclick="toggleField('banners','${b.id}','active',${!b.active})">${b.active ? "Disable" : "Enable"}</button>
      <button class="reject" onclick="del('banners','${b.id}')">Delete</button></td></tr>`).join("") || empty(5);
 
+  renderBilling();
   drawCharts();
+}
+
+/* ---------- billing ---------- */
+function planFor(category, type) {
+  const plans = DATA.plans || [];
+  return plans.find(p => p.category === category && (p.type === type || p.type === "both"))
+    || plans.find(p => p.category === category) || null;
+}
+function sellerList() {
+  const owners = {};
+  const add = (s, type) => {
+    if (!s.ownerUid) return;
+    if (!owners[s.ownerUid]) owners[s.ownerUid] = { uid: s.ownerUid, name: s.name, type, category: s.category };
+    else if (owners[s.ownerUid].type !== type) owners[s.ownerUid].type = "both";
+  };
+  (DATA.stores || []).forEach(s => add(s, "store"));
+  (DATA.services || []).forEach(s => add(s, "service"));
+  return Object.values(owners);
+}
+function billingFor(uid) { return (DATA.billing || []).find(b => b.id === uid) || {}; }
+
+function renderBilling() {
+  // Plans table
+  document.getElementById("planRows").innerHTML = (DATA.plans || []).map(p =>
+    `<tr><td>${p.category}</td><td><span class="tag info">${p.type || "both"}</span></td><td>${money(p.activationFee)}</td><td>${money(p.monthlyFee)} / mo</td>
+     <td class="row-actions"><button class="mini" onclick="editPlan('${p.id}')">Edit</button><button class="reject" onclick="del('plans','${p.id}')">Delete</button></td></tr>`).join("") || empty(5);
+
+  const sellers = sellerList();
+  const billed = uid => billingFor(uid);
+  const now = Date.now();
+  const isActive = b => b.subActive && (!b.nextDueAt || (b.nextDueAt.seconds ? b.nextDueAt.seconds * 1000 : 0) >= now);
+
+  // summary
+  let activation = 0, mrr = 0, active = 0, pending = 0;
+  sellers.forEach(s => {
+    const b = billed(s.uid);
+    if (b.activationPaid) activation += (b.activationAmount || 0); else pending++;
+    if (isActive(b)) { active++; mrr += (b.monthlyFee || 0); }
+  });
+  document.getElementById("b-activation").textContent = money(activation);
+  document.getElementById("b-mrr").textContent = money(mrr);
+  document.getElementById("b-active").textContent = num(active);
+  document.getElementById("b-pending").textContent = num(pending);
+
+  const q = filt("q-bill"), f = document.getElementById("f-bill")?.value || "all";
+  const rows = sellers.filter(s => {
+    if (q && !(s.name || "").toLowerCase().includes(q)) return false;
+    const b = billed(s.uid);
+    if (f === "actpending") return !b.activationPaid;
+    if (f === "actpaid") return !!b.activationPaid;
+    if (f === "active") return isActive(b);
+    if (f === "expired") return !isActive(b);
+    return true;
+  });
+  document.getElementById("billRows").innerHTML = rows.map(s => {
+    const b = billed(s.uid);
+    const act = b.activationPaid
+      ? `<span class="tag ok">Paid ${money(b.activationAmount)}</span><div style="font-size:11px;color:var(--muted)">${fmtTs(b.activationAt)}</div>`
+      : `<span class="tag wait">Pending</span>`;
+    const sub = isActive(b)
+      ? `<span class="tag ok">Active</span><div style="font-size:11px;color:var(--muted)">till ${fmtTs(b.nextDueAt)}</div>`
+      : (b.lastPaidAt ? `<span class="tag no">Expired</span><div style="font-size:11px;color:var(--muted)">due ${fmtTs(b.nextDueAt)}</div>` : `<span class="tag wait">None</span>`);
+    return `<tr><td>${s.name || "-"}</td><td><span class="tag info">${s.type}</span></td><td>${s.category || "-"}</td>
+      <td>${act}</td><td>${sub}</td>
+      <td class="row-actions">
+        ${b.activationPaid ? "" : `<button class="approve" onclick="markActivation('${s.uid}')">Activate</button>`}
+        <button class="mini" onclick="recordMonthly('${s.uid}')">Record payment</button>
+        ${isActive(b) ? `<button class="reject" onclick="expireSub('${s.uid}')">Expire</button>` : ""}
+      </td></tr>`;
+  }).join("") || empty(6);
+}
+
+let editPlanId = null;
+function editPlan(id) { openPlan((DATA.plans || []).find(x => x.id === id)); }
+function openPlan(p) {
+  editPlanId = p?.id || null; const type = p?.type || "store";
+  modal(`<h3>${p ? "Edit" : "Add"} category plan</h3>
+    <label>Category</label><input id="pl-cat" value="${esc(p?.category)}" placeholder="e.g. groceries / electrician">
+    <label>Type</label><select id="pl-type">${opt("store", "Store", type)}${opt("service", "Service", type)}${opt("both", "Both", type)}</select>
+    <label>One-time activation fee (₹)</label><input id="pl-act" type="number" value="${p?.activationFee ?? ""}">
+    <label>Monthly subscription (₹)</label><input id="pl-mon" type="number" value="${p?.monthlyFee ?? ""}">
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="savePlan()">Save</button></div>`);
+}
+async function savePlan() {
+  const category = val("pl-cat"); if (!category) return toast("Category required", "bad");
+  const data = { category, type: val("pl-type"), activationFee: parseFloat(val("pl-act") || "0") || 0, monthlyFee: parseFloat(val("pl-mon") || "0") || 0 };
+  if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
+  try { if (editPlanId) await db.collection("plans").doc(editPlanId).update(data); else await db.collection("plans").add(data); toast("Plan saved", "ok"); closeModal(); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+
+function markActivation(uid) {
+  const s = sellerList().find(x => x.uid === uid); const plan = planFor(s?.category, s?.type);
+  modal(`<h3>Record activation</h3><p style="color:var(--muted);font-size:13px">${s?.name || ""} · ${s?.category || ""}</p>
+    <label>Activation amount (₹)</label><input id="ac-amt" type="number" value="${plan?.activationFee ?? ""}">
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveActivation('${uid}')">Mark paid</button></div>`);
+}
+async function saveActivation(uid) {
+  const s = sellerList().find(x => x.uid === uid); const plan = planFor(s?.category, s?.type);
+  const amt = parseFloat(val("ac-amt") || "0") || 0;
+  if (!LIVE) { toast("(demo) activated", "ok"); return closeModal(); }
+  try {
+    await db.collection("billing").doc(uid).set({
+      name: s?.name || "", type: s?.type || "", category: s?.category || "",
+      activationPaid: true, activationAmount: amt, activationAt: firebase.firestore.FieldValue.serverTimestamp(),
+      monthlyFee: plan?.monthlyFee || 0
+    }, { merge: true });
+    toast("Activation recorded", "ok"); closeModal(); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+
+function recordMonthly(uid) {
+  const s = sellerList().find(x => x.uid === uid); const b = billingFor(uid); const plan = planFor(s?.category, s?.type);
+  const amt = b.monthlyFee || plan?.monthlyFee || "";
+  modal(`<h3>Record monthly payment</h3><p style="color:var(--muted);font-size:13px">${s?.name || ""} · ${s?.category || ""}</p>
+    <label>Amount (₹)</label><input id="mo-amt" type="number" value="${amt}">
+    <div style="color:var(--muted);font-size:12px;margin-top:6px">Extends the subscription by 1 month from its current due date.</div>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveMonthly('${uid}')">Record</button></div>`);
+}
+async function saveMonthly(uid) {
+  const s = sellerList().find(x => x.uid === uid); const b = billingFor(uid);
+  const amt = parseFloat(val("mo-amt") || "0") || 0;
+  const base = (b.nextDueAt && (b.nextDueAt.seconds * 1000) > Date.now()) ? new Date(b.nextDueAt.seconds * 1000) : new Date();
+  base.setMonth(base.getMonth() + 1);
+  if (!LIVE) { toast("(demo) recorded", "ok"); return closeModal(); }
+  try {
+    await db.collection("billing").doc(uid).set({
+      name: s?.name || "", type: s?.type || "", category: s?.category || "",
+      subActive: true, monthlyFee: amt, lastPaidAt: firebase.firestore.FieldValue.serverTimestamp(),
+      nextDueAt: firebase.firestore.Timestamp.fromDate(base)
+    }, { merge: true });
+    toast("Payment recorded", "ok"); closeModal(); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+async function expireSub(uid) {
+  if (!LIVE) { toast("(demo) expired", "ok"); return; }
+  try { await db.collection("billing").doc(uid).set({ subActive: false }, { merge: true }); toast("Marked expired", "ok"); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
 }
 
 function renderListing(col, rowsId, qId, availField, onLbl, offLbl) {

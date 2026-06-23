@@ -84,6 +84,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Billing plans (activation + monthly per category): readable by signed-in, admin-only edit.
+    match /plans/{id} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+
+    // Per-seller billing: a seller reads their own; only admin writes (records payments).
+    match /billing/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isAdmin();
+    }
+
     // Reviews: anyone can read; a signed-in customer can post their own.
     match /reviews/{id} {
       allow read: if true;

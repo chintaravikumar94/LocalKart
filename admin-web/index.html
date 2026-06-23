@@ -189,11 +189,11 @@
       <div class="panel"><h3>Pending approvals</h3>
       <table><thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Area</th><th>Action</th></tr></thead><tbody id="approvalRows"></tbody></table></div></section>
 
-    <section class="view" id="view-stores"><div class="toolbar"><input id="q-stores" placeholder="Search stores…" oninput="render()"></div>
-      <div class="panel"><h3>Stores</h3><table><thead><tr><th></th><th>Name</th><th>Category</th><th>Rating</th><th>Open</th><th>Status</th><th>Actions</th></tr></thead><tbody id="storeRows"></tbody></table></div></section>
+    <section class="view" id="view-stores"><div class="toolbar"><input id="q-stores" placeholder="Search stores by name or ID…" oninput="render()"></div>
+      <div class="panel"><h3>Stores <span id="storeCount" class="crumb"></span></h3><table><thead><tr><th></th><th>ID</th><th>Name</th><th>Category</th><th>Rating</th><th>Open</th><th>Status</th><th>Actions</th></tr></thead><tbody id="storeRows"></tbody></table></div></section>
 
-    <section class="view" id="view-services"><div class="toolbar"><input id="q-svc" placeholder="Search providers…" oninput="render()"></div>
-      <div class="panel"><h3>Service Providers</h3><table><thead><tr><th></th><th>Name</th><th>Category</th><th>Rating</th><th>Available</th><th>Status</th><th>Actions</th></tr></thead><tbody id="svcRows"></tbody></table></div></section>
+    <section class="view" id="view-services"><div class="toolbar"><input id="q-svc" placeholder="Search providers by name or ID…" oninput="render()"></div>
+      <div class="panel"><h3>Service Providers <span id="svcCount" class="crumb"></span></h3><table><thead><tr><th></th><th>ID</th><th>Name</th><th>Category</th><th>Rating</th><th>Available</th><th>Status</th><th>Actions</th></tr></thead><tbody id="svcRows"></tbody></table></div></section>
 
     <section class="view" id="view-catalog">
       <div class="tabs">
@@ -224,7 +224,7 @@
           <button class="ghost" onclick="seedDefaultCategories()" style="margin-right:8px">Load all</button>
           <button class="add" onclick="openCategory()">＋ Add</button>
         </span></h3>
-        <table><thead><tr><th>Name</th><th>Type</th><th>Action</th></tr></thead><tbody id="catRows"></tbody></table></div></section>
+        <table><thead><tr><th>Name</th><th>Type</th><th>In use</th><th>Action</th></tr></thead><tbody id="catRows"></tbody></table></div></section>
 
     <section class="view" id="view-orders"><div class="toolbar"><input id="q-ord" placeholder="Search orders…" oninput="render()"></div>
       <div class="panel"><h3>Orders</h3><table><thead><tr><th>Order</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody id="orderRows"></tbody></table></div></section>
@@ -312,6 +312,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

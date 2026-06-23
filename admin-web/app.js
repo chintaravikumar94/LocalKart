@@ -221,9 +221,14 @@ function render() {
 
   const catList = (D.categories || []).filter(c => tabKeepType(TAB.categories, c.type || "store"));
   const ctc = document.getElementById("catCount"); if (ctc) ctc.textContent = `· ${catList.length} categor${catList.length === 1 ? "y" : "ies"}`;
-  document.getElementById("catRows").innerHTML = catList.map(c =>
-    `<tr><td>${c.name}</td><td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type || "store"}</span></td>
-     <td><button class="reject" onclick="del('categories','${c.id}')">Delete</button></td></tr>`).join("") || empty(3);
+  document.getElementById("catRows").innerHTML = catList.map(c => {
+    const used = countCategoryUsage(c.name, c.type);
+    return `<tr><td>${c.name}</td><td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type || "store"}</span></td>
+     <td>${used}</td>
+     <td class="row-actions">
+       <button class="mini" onclick="editCategory('${c.id}')">Edit</button>
+       <button class="reject" onclick="del('categories','${c.id}')">Delete</button>
+     </td></tr>`; }).join("") || empty(4);
 
   const qo = filt("q-ord");
   document.getElementById("orderRows").innerHTML = (D.orders || []).filter(o => (o.id || "").toLowerCase().includes(qo) || (o.items || []).some(i => (i.name || "").toLowerCase().includes(qo))).map(o =>
@@ -462,10 +467,24 @@ async function expireSub(uid) {
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
 
+// Stable, human-readable identification code derived from the Firestore doc id.
+function idCode(col, s) {
+  if (s.code) return s.code;
+  const prefix = col === "services" ? "SVC" : "STR";
+  const h = (s.id || "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  return `${prefix}-${(h || "000000").slice(0, 6).padEnd(6, "0")}`;
+}
 function renderListing(col, rowsId, qId, availField, onLbl, offLbl) {
   const q = filt(qId);
-  document.getElementById(rowsId).innerHTML = (DATA[col] || []).filter(s => (s.name || "").toLowerCase().includes(q)).map(s =>
-    `<tr><td>${img(s.photoUrl)}</td><td>${s.name}${s.featured ? ' <span class="tag feat">★</span>' : ""}</td><td>${s.category || "-"}</td>
+  const list = (DATA[col] || []).filter(s =>
+    (s.name || "").toLowerCase().includes(q) || idCode(col, s).toLowerCase().includes(q));
+  const total = (DATA[col] || []).length, live = (DATA[col] || []).filter(s => s.approved).length;
+  const badge = document.getElementById(col === "services" ? "svcCount" : "storeCount");
+  if (badge) badge.textContent = `· ${total} total · ${live} live`;
+  document.getElementById(rowsId).innerHTML = list.map(s =>
+    `<tr><td>${img(s.photoUrl)}</td>
+     <td><span class="tag info" title="Identification number">${idCode(col, s)}</span></td>
+     <td>${s.name}${s.featured ? ' <span class="tag feat">★</span>' : ""}</td><td>${s.category || "-"}</td>
      <td>${star(s.rating)} ${(s.rating || 0).toFixed ? Number(s.rating || 0).toFixed(1) : s.rating}</td>
      <td>${s[availField] ? `<span class="tag ok">${onLbl}</span>` : `<span class="tag no">${offLbl}</span>`}</td>
      <td>${tag(s.approved)}</td>
@@ -473,7 +492,7 @@ function renderListing(col, rowsId, qId, availField, onLbl, offLbl) {
        <button class="mini" onclick="editListing('${col}','${s.id}')">Edit</button>
        ${s.approved ? `<button class="mini" onclick="toggleField('${col}','${s.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('${col}','${s.id}','approved',true)">Approve</button>`}
        <button class="reject" onclick="del('${col}','${s.id}')">Delete</button>
-     </td></tr>`).join("") || empty(7);
+     </td></tr>`).join("") || empty(8);
 }
 function empty(c) { return `<tr><td colspan="${c}" class="empty">No data yet</td></tr>`; }
 
@@ -530,17 +549,31 @@ async function saveListing(col, id, availField) {
 }
 
 /* ---------- categories ---------- */
-function openCategory() {
-  modal(`<h3>Add category</h3>
-    <label>Name</label><input id="c-name" placeholder="e.g. groceries">
-    <label>Type</label><select id="c-type">${opt("store", "Store", "store")}${opt("service", "Service", "store")}</select>
+let editCatId = null;
+// How many stores/services currently use this category.
+function countCategoryUsage(name, type) {
+  const col = type === "service" ? "services" : "stores";
+  return (DATA[col] || []).filter(s => (s.category || "") === name).length;
+}
+function editCategory(id) { openCategory((DATA.categories || []).find(c => c.id === id)); }
+function openCategory(c) {
+  editCatId = c?.id || null;
+  const type = c?.type || "store";
+  modal(`<h3>${c ? "Edit" : "Add"} category</h3>
+    <label>Name</label><input id="c-name" placeholder="e.g. groceries" value="${c?.name || ""}">
+    <label>Type</label><select id="c-type">${opt("store", "Store", type)}${opt("service", "Service", type)}</select>
+    <label>Icon URL (optional)</label><input id="c-icon" placeholder="https://…" value="${c?.iconUrl || ""}">
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveCategory()">Save</button></div>`);
 }
 async function saveCategory() {
-  const name = val("c-name"); if (!name) return toast("Name required", "bad");
+  const name = val("c-name").trim(); if (!name) return toast("Name required", "bad");
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
-  try { await db.collection("categories").add({ name, type: val("c-type"), iconUrl: "" }); toast("Category added", "ok"); closeModal(); await loadAll(); }
-  catch (e) { toast("Failed: " + e.message, "bad"); }
+  const data = { name, type: val("c-type"), iconUrl: val("c-icon").trim() };
+  try {
+    if (editCatId) { await db.collection("categories").doc(editCatId).set(data, { merge: true }); toast("Category updated", "ok"); }
+    else { await db.collection("categories").add(data); toast("Category added", "ok"); }
+    editCatId = null; closeModal(); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); }
 }
 const DEFAULT_STORE_CATS = [
   "groceries", "vegetables_fruits", "kirana", "supermarket", "bakery", "sweets", "dairy",

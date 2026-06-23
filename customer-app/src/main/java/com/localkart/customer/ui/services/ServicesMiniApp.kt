@@ -43,7 +43,7 @@ fun ServicesMiniApp() {
         Box(Modifier.padding(pad)) {
             when (sel) {
                 SvcTab.HOME -> ServicesHome(onBook = { bookingProvider = it }, onRequest = { requestProvider = it })
-                SvcTab.CATEGORY -> ServicesCategory()
+                SvcTab.CATEGORY -> ServicesCategory(onBook = { bookingProvider = it }, onRequest = { requestProvider = it })
                 SvcTab.NEARBY -> NearbyProviders(onBook = { bookingProvider = it }, onRequest = { requestProvider = it })
                 SvcTab.ACTIVITY -> MyActivity()
             }
@@ -146,10 +146,21 @@ private fun ProviderCard(provider: ServiceProvider, distanceKm: Double? = null, 
     }
 }
 
-/** Flipkart-style: left rail of service categories, right pane of services. */
+/** Flipkart-style: left rail of categories, right pane of real providers (book/request). */
 @Composable
-private fun ServicesCategory() {
+private fun ServicesCategory(onBook: (ServiceProvider) -> Unit, onRequest: (ServiceProvider) -> Unit) {
+    val repo = remember { com.localkart.common.repo.FirestoreRepo() }
+    var providers by remember { mutableStateOf<List<ServiceProvider>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
     var selected by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        runCatching { repo.providersByCategory("all", onlyApproved = false) }
+            .onSuccess { providers = it }
+        loading = false
+    }
+    val cat = serviceCategories[selected]
+    val filtered = if (cat == "all") providers else providers.filter { it.category == cat }
+
     Row(Modifier.fillMaxSize()) {
         Surface(tonalElevation = 2.dp, modifier = Modifier.width(96.dp).fillMaxHeight()) {
             LazyColumn {
@@ -164,15 +175,21 @@ private fun ServicesCategory() {
                             color = if (active) MaterialTheme.colorScheme.primaryContainer
                                     else MaterialTheme.colorScheme.surfaceVariant) {
                             Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Engineering, null) } }
+                                Icon(Icons.Default.Engineering, null,
+                                    tint = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant) } }
                         Text(c.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                     }
                 }
             }
         }
         LazyColumn(Modifier.weight(1f)) {
-            item { SectionHeader("${serviceCategories[selected].replaceFirstChar { it.uppercase() }} Services") }
-            items((1..6).toList()) { ListRow("Service $it", "Tap to view details & book") }
+            item { SectionHeader("${cat.replaceFirstChar { it.uppercase() }} ${if (cat == "all") "Providers" else "Services"}") }
+            when {
+                loading -> item { LoadingRow() }
+                filtered.isEmpty() -> item { Box(Modifier.fillMaxWidth().padding(30.dp), Alignment.Center) {
+                    Text("No providers here yet", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+                else -> items(filtered) { p -> ProviderCard(p, onBook = { onBook(p) }, onRequest = { onRequest(p) }) }
+            }
         }
     }
 }

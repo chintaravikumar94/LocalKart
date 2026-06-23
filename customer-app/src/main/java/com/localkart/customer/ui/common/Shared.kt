@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -24,18 +25,36 @@ fun Modifier.clickablePad(onClick: () -> Unit): Modifier = this.then(Modifier.cl
 
 @Composable
 fun ProfileCard() {
+    var name by remember { mutableStateOf(com.localkart.common.auth.AuthManager.currentName) }
+    var email by remember { mutableStateOf("") }
+    var photo by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        com.localkart.common.auth.AuthManager.currentUser()?.let {
+            if (it.name.isNotBlank()) name = it.name
+            email = it.email; photo = it.photoUrl
+        }
+    }
     ElevatedCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(50), tonalElevation = 4.dp) {
-                Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Person, null) }
+            if (photo.isNotBlank()) {
+                coil.compose.AsyncImage(photo, name,
+                    Modifier.size(56.dp).clip(RoundedCornerShape(50)),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            } else {
+                Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
+                    Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                        Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                }
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("Chinta Ravikumar", fontWeight = FontWeight.Bold)
-                Text("chintaravikumar1994@gmail.com", style = MaterialTheme.typography.bodySmall)
+                Text(name.ifBlank { "LocalKart User" }, fontWeight = FontWeight.Bold)
+                if (email.isNotBlank()) Text(email, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Default.Edit, null)
+            Icon(Icons.Default.Verified, null, tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

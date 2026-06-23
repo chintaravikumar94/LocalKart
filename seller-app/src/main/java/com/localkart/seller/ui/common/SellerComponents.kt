@@ -37,23 +37,26 @@ fun WelcomeHeader(name: String) {
     }
 }
 
-/** Shop profile card with an Available on/off toggle. */
+/** Shop profile card with a persisted Available/Open on-off toggle. */
 @Composable
-fun ShopProfileCard(shopName: String, category: String) {
-    var available by remember { mutableStateOf(true) }
+fun ShopProfileCard(shopName: String, category: String, available: Boolean = true, onToggle: (Boolean) -> Unit = {}) {
     ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(50), tonalElevation = 4.dp) {
-                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) { Icon(Icons.Default.Storefront, null) }
+            Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
+                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Storefront, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(shopName, fontWeight = FontWeight.Bold)
-                Text(category, style = MaterialTheme.typography.bodySmall)
+                Text(category, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (available) "Available" else "Offline", style = MaterialTheme.typography.labelSmall)
-                Switch(checked = available, onCheckedChange = { available = it })
+                Text(if (available) "Available" else "Offline", style = MaterialTheme.typography.labelSmall,
+                    color = if (available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                Switch(checked = available, onCheckedChange = onToggle)
             }
         }
     }

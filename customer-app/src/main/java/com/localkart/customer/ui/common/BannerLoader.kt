@@ -19,6 +19,6 @@ fun LiveBannerSlider(audience: String = "customer", fallback: List<String> = emp
         runCatching { repo.bannersFor(audience) }.onSuccess { banners = it }
         runCatching { repo.bannerSettings() }.onSuccess { settings = it }
     }
-    val show = if (banners.isNotEmpty()) banners else fallback.map { Banner(imageUrl = it) }
-    if (show.isNotEmpty()) BannerCarousel(show, settings)
+    // Show banners only when the admin has actually added them for this audience.
+    if (banners.isNotEmpty()) BannerCarousel(banners, settings)
 }

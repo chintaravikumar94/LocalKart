@@ -158,7 +158,7 @@ fun SellerBanners(urls: List<String>, dwellMillis: Int = 4000) {
 
 /** Loads active seller banners and shows them; falls back to gradient placeholders. */
 @Composable
-fun LiveSellerBanners(fallback: List<String> = listOf("a", "b", "c")) {
+fun LiveSellerBanners() {
     val repo = remember { com.localkart.common.repo.FirestoreRepo() }
     var banners by remember { mutableStateOf<List<com.localkart.common.model.Banner>>(emptyList()) }
     var settings by remember { mutableStateOf(com.localkart.common.model.BannerSettings()) }
@@ -166,8 +166,8 @@ fun LiveSellerBanners(fallback: List<String> = listOf("a", "b", "c")) {
         runCatching { repo.bannersFor("seller") }.onSuccess { banners = it }
         runCatching { repo.bannerSettings() }.onSuccess { settings = it }
     }
-    val show = if (banners.isNotEmpty()) banners else fallback.map { com.localkart.common.model.Banner(imageUrl = it) }
-    com.localkart.common.ui.BannerCarousel(show, settings)
+    // Show banners only when the admin has added seller-audience banners.
+    if (banners.isNotEmpty()) com.localkart.common.ui.BannerCarousel(banners, settings)
 }
 
 data class QuickAction(val label: String, val icon: ImageVector)

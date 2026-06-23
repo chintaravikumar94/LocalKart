@@ -47,17 +47,19 @@ function modal(html) { document.getElementById("modalBox").innerHTML = html; doc
 function closeModal() { document.getElementById("modalBg").classList.remove("open"); }
 document.getElementById("modalBg").addEventListener("click", e => { if (e.target.id === "modalBg") closeModal(); });
 function opt(v, label, cur) { return `<option value="${v}" ${v === cur ? "selected" : ""}>${label}</option>`; }
+/** Pretty, capitalised label for a stored category key (value stays untouched). */
+function catLabel(name) { return (name || "").replace(/_/g, " ").toUpperCase(); }
 /** Category <option>s for a given kind ("store" | "service" | "all"). */
 function categoryOptions(cur, want) {
   let cats = DATA.categories || [];
   if (want && want !== "all") cats = cats.filter(c => c.type === want);
   if (!cats.length) {
     const kind = (want && want !== "all") ? want + " " : "";
-    return `<option value="${cur || ""}">${cur || "— add " + kind + "categories first —"}</option>`;
+    return `<option value="${cur || ""}">${cur ? catLabel(cur) : "— add " + kind + "categories first —"}</option>`;
   }
   let html = "";
-  if (cur && !cats.some(c => c.name === cur)) html += opt(cur, cur + " (current)", cur);
-  html += cats.map(c => opt(c.name, c.name, cur)).join("");
+  if (cur && !cats.some(c => c.name === cur)) html += opt(cur, catLabel(cur) + " (current)", cur);
+  html += cats.map(c => opt(c.name, catLabel(c.name), cur)).join("");
   return html;
 }
 function planWant(type) { return type === "store" ? "store" : type === "service" ? "service" : "all"; }
@@ -214,7 +216,7 @@ function render() {
   const cc = document.getElementById("catalogCount"); if (cc) cc.textContent = `· ${catRows.length} item(s)`;
   document.getElementById("catalogRows").innerHTML = catRows.map(c =>
     `<tr><td>${img(c.imageUrl)}</td><td>${c.name}</td>
-     <td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type}</span></td><td>${c.category || "-"}</td>
+     <td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type}</span></td><td>${c.category ? catLabel(c.category) : "-"}</td>
      <td>${c.unit || "-"}</td><td>${c.suggestedMrp ? money(c.suggestedMrp) : "-"}</td>
      <td class="row-actions"><button class="mini" onclick="editCatalogItem('${c.id}')">Edit</button>
      <button class="reject" onclick="del('catalog','${c.id}')">Delete</button></td></tr>`).join("") || empty(7);
@@ -223,7 +225,7 @@ function render() {
   const ctc = document.getElementById("catCount"); if (ctc) ctc.textContent = `· ${catList.length} categor${catList.length === 1 ? "y" : "ies"}`;
   document.getElementById("catRows").innerHTML = catList.map(c => {
     const used = countCategoryUsage(c.name, c.type);
-    return `<tr><td>${c.iconUrl ? img(c.iconUrl) + " " : ""}${c.name}</td><td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type || "store"}</span></td>
+    return `<tr><td>${c.iconUrl ? img(c.iconUrl) + " " : ""}<b>${catLabel(c.name)}</b></td><td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${(c.type || "store").toUpperCase()}</span></td>
      <td>${used}</td>
      <td class="row-actions">
        <button class="mini" onclick="editCategory('${c.id}')">Edit</button>
@@ -484,7 +486,7 @@ function renderListing(col, rowsId, qId, availField, onLbl, offLbl) {
   document.getElementById(rowsId).innerHTML = list.map(s =>
     `<tr><td>${img(s.photoUrl)}</td>
      <td><span class="tag info" title="Identification number">${idCode(col, s)}</span></td>
-     <td>${s.name}${s.featured ? ' <span class="tag feat">★</span>' : ""}</td><td>${s.category || "-"}</td>
+     <td>${s.name}${s.featured ? ' <span class="tag feat">★</span>' : ""}</td><td>${s.category ? catLabel(s.category) : "-"}</td>
      <td>${star(s.rating)} ${(s.rating || 0).toFixed ? Number(s.rating || 0).toFixed(1) : s.rating}</td>
      <td>${s[availField] ? `<span class="tag ok">${onLbl}</span>` : `<span class="tag no">${offLbl}</span>`}</td>
      <td>${tag(s.approved)}</td>

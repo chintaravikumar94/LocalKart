@@ -1,15 +1,14 @@
 package com.localkart.seller.ui.store
 
-import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.localkart.common.auth.AuthManager
+import com.localkart.common.model.CatalogItem
 import com.localkart.common.model.Product
 import com.localkart.common.repo.FirestoreRepo
-import com.localkart.common.repo.StorageRepo
 import kotlinx.coroutines.launch
 
 class ProductsViewModel : ViewModel() {
@@ -18,10 +17,12 @@ class ProductsViewModel : ViewModel() {
     var storeId by mutableStateOf<String?>(null); private set
     var storeName by mutableStateOf(""); private set
     var products by mutableStateOf<List<Product>>(emptyList()); private set
+    var catalog by mutableStateOf<List<CatalogItem>>(emptyList()); private set
     var loading by mutableStateOf(false); private set
+    var saving by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
 
-    init { load() }
+    init { load(); loadCatalog() }
 
     fun load() {
         viewModelScope.launch {
@@ -39,17 +40,22 @@ class ProductsViewModel : ViewModel() {
         }
     }
 
-    var saving by mutableStateOf(false); private set
+    private fun loadCatalog() {
+        viewModelScope.launch { runCatching { repo.catalogItems("product") }.onSuccess { catalog = it } }
+    }
 
-    fun add(name: String, price: Double, mrp: Double, unit: String, imageUri: Uri?) {
+    /** Pick a catalog item and list it with the seller's price; pending admin approval. */
+    fun addFromCatalog(item: CatalogItem, mrp: Double, price: Double) {
         val sid = storeId ?: return
         viewModelScope.launch {
             saving = true
             runCatching {
-                val imageUrl = imageUri?.let { StorageRepo.uploadImage(it, "products") } ?: ""
                 repo.addProduct(
-                    Product(storeId = sid, name = name, category = "", imageUrl = imageUrl,
-                        price = price, mrp = mrp, unit = unit, inStock = true)
+                    Product(
+                        storeId = sid, catalogId = item.id, name = item.name,
+                        category = item.category, imageUrl = item.imageUrl,
+                        price = price, mrp = mrp, unit = item.unit, inStock = true, approved = false
+                    )
                 )
             }.onSuccess { load() }.onFailure { error = it.message }
             saving = false

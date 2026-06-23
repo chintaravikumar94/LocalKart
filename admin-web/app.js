@@ -62,7 +62,8 @@ const CRUMBS = {
   services: "Manage service providers", products: "Catalog items", categories: "Store & service categories",
   orders: "Customer orders", bookings: "Service bookings", appointments: "Store appointments",
   requests: "Service / job requests", reviews: "Customer feedback", customers: "Registered users",
-  admins: "Console administrators", notifications: "Broadcast to apps", grow: "Seller promos", banners: "Home banners"
+  admins: "Console administrators", notifications: "Broadcast to apps", grow: "Seller promos", banners: "Home banners",
+  catalog: "Company master catalog"
 };
 document.getElementById("nav").addEventListener("click", e => {
   const a = e.target.closest("a"); if (!a) return;
@@ -99,14 +100,15 @@ async function fetchCol(name, fb) {
 async function loadBannerSettings() { if (!LIVE) return; try { const d = await db.collection("settings").doc("banners").get(); if (d.exists) BSETTINGS = { ...BSETTINGS, ...d.data() }; } catch (e) {} }
 
 async function loadAll() {
-  const [stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners] = await Promise.all([
+  const [stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings] = await Promise.all([
     fetchCol("stores", DEMO.stores), fetchCol("services", DEMO.services), fetchCol("products", DEMO.products),
     fetchCol("orders", DEMO.orders), fetchCol("bookings", DEMO.bookings), fetchCol("appointments", DEMO.appointments),
     fetchCol("serviceRequests", DEMO.serviceRequests), fetchCol("reviews", DEMO.reviews), fetchCol("users", DEMO.users),
-    fetchCol("admins", DEMO.admins), fetchCol("categories", DEMO.categories), fetchCol("growItems", DEMO.growItems), fetchCol("banners", DEMO.banners)
+    fetchCol("admins", DEMO.admins), fetchCol("categories", DEMO.categories), fetchCol("growItems", DEMO.growItems), fetchCol("banners", DEMO.banners),
+    fetchCol("catalog", []), fetchCol("serviceOfferings", [])
   ]);
   await loadBannerSettings();
-  Object.assign(DATA, { stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners });
+  Object.assign(DATA, { stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings });
   PENDING = [...stores.filter(x => !x.approved).map(x => ({ ...x, _col: "stores" })), ...services.filter(x => !x.approved).map(x => ({ ...x, _col: "services" }))];
   render();
 }
@@ -150,8 +152,17 @@ function render() {
   document.getElementById("prodRows").innerHTML = (D.products || []).filter(p => (p.name || "").toLowerCase().includes(qp)).map(p =>
     `<tr><td>${img(p.imageUrl)}</td><td>${p.name}</td><td>${money(p.price)}</td><td>${p.mrp ? money(p.mrp) : "-"}</td>
      <td>${p.inStock ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td>
-     <td class="row-actions"><button class="mini" onclick="toggleField('products','${p.id}','inStock',${!p.inStock})">${p.inStock ? "Mark out" : "In stock"}</button>
-     <button class="reject" onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("") || empty(6);
+     <td>${tag(p.approved)}</td>
+     <td class="row-actions">
+       ${p.approved ? `<button class="mini" onclick="toggleField('products','${p.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('products','${p.id}','approved',true)">Approve</button>`}
+       <button class="mini" onclick="toggleField('products','${p.id}','inStock',${!p.inStock})">${p.inStock ? "Mark out" : "In stock"}</button>
+       <button class="reject" onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("") || empty(7);
+
+  document.getElementById("catalogRows").innerHTML = (D.catalog || []).map(c =>
+    `<tr><td>${img(c.imageUrl)}</td><td>${c.name}</td><td><span class="tag info">${c.type}</span></td><td>${c.category || "-"}</td>
+     <td>${c.suggestedMrp ? money(c.suggestedMrp) : "-"}</td>
+     <td class="row-actions"><button class="mini" onclick="editCatalogItem('${c.id}')">Edit</button>
+     <button class="reject" onclick="del('catalog','${c.id}')">Delete</button></td></tr>`).join("") || empty(6);
 
   document.getElementById("catRows").innerHTML = (D.categories || []).map(c =>
     `<tr><td>${c.name}</td><td><span class="tag info">${c.type || "store"}</span></td>
@@ -277,6 +288,37 @@ async function saveCategory() {
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
   try { await db.collection("categories").add({ name, type: val("c-type"), iconUrl: "" }); toast("Category added", "ok"); closeModal(); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+
+/* ---------- master catalog ---------- */
+let editCatalogId = null;
+function editCatalogItem(id) { openCatalogItem((DATA.catalog || []).find(x => x.id === id)); }
+function openCatalogItem(c) {
+  editCatalogId = c?.id || null; const type = c?.type || "product";
+  modal(`<h3>${c ? "Edit" : "Add"} catalog item</h3>
+    <label>Name</label><input id="ci-name" value="${esc(c?.name)}" placeholder="e.g. Rice 5kg">
+    <label>Type</label><select id="ci-type">${opt("product", "Product", type)}${opt("service", "Service", type)}</select>
+    <label>Category</label><input id="ci-cat" value="${esc(c?.category)}" placeholder="e.g. groceries / plumber">
+    <label>Unit (optional)</label><input id="ci-unit" value="${esc(c?.unit)}" placeholder="e.g. 5 kg, per visit">
+    <label>Suggested MRP (₹)</label><input id="ci-mrp" type="number" value="${c?.suggestedMrp ?? ""}">
+    <label>Description (optional)</label><input id="ci-desc" value="${esc(c?.description)}">
+    <label>Image (optional)</label><input id="ci-file" type="file" accept="image/*" onchange="previewFile('ci-file','ci-prev')">
+    <img id="ci-prev" src="${c?.imageUrl || ""}" style="display:${c?.imageUrl ? "block" : "none"};width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="ci-save" onclick="saveCatalogItem()">Save</button></div>`);
+}
+async function saveCatalogItem() {
+  const name = val("ci-name"); if (!name) return toast("Name required", "bad");
+  if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
+  const btn = document.getElementById("ci-save"); if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+  try {
+    const imageUrl = await uploadImage("ci-file", "catalog");
+    const data = { name, type: val("ci-type"), category: val("ci-cat"), unit: val("ci-unit"),
+      suggestedMrp: parseFloat(val("ci-mrp") || "0") || 0, description: val("ci-desc") };
+    if (imageUrl) data.imageUrl = imageUrl;
+    if (editCatalogId) await db.collection("catalog").doc(editCatalogId).update(data);
+    else await db.collection("catalog").add({ ...data, imageUrl: imageUrl || "" });
+    toast("Catalog item saved", "ok"); closeModal(); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
 }
 
 /* ---------- customers / admins ---------- */

@@ -41,7 +41,7 @@ fun StoreDetailScreen(store: Store, onBack: () -> Unit) {
 
     LaunchedEffect(store.id) {
         loading = true; error = null
-        runCatching { repo.productsForStore(store.id) }
+        runCatching { repo.approvedProductsForStore(store.id) }
             .onSuccess { products = it }
             .onFailure { error = it.message ?: "Failed to load products" }
         loading = false
@@ -159,8 +159,15 @@ private fun ProductCard(p: Product, onAdd: () -> Unit) {
                 if (p.mrp > p.price) {
                     Spacer(Modifier.width(6.dp))
                     Text("₹${p.mrp.toInt()}", style = MaterialTheme.typography.labelSmall,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough)
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+            if (p.mrp > p.price) {
+                val save = (p.mrp - p.price).toInt()
+                val pct = ((p.mrp - p.price) / p.mrp * 100).toInt()
+                Text("You save ₹$save ($pct% off)", style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.SemiBold)
             }
             Button(onClick = onAdd, Modifier.fillMaxWidth(), enabled = p.inStock) {
                 Text(if (p.inStock) "Add" else "Out of stock")

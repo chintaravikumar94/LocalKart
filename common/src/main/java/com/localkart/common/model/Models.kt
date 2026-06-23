@@ -64,13 +64,41 @@ data class ServiceProvider(
 data class Product(
     @DocumentId val id: String = "",
     val storeId: String = "",
+    val catalogId: String = "",       // links to the company master catalog item
+    val name: String = "",
+    val category: String = "",
+    val imageUrl: String = "",
+    val price: Double = 0.0,           // selling price
+    val mrp: Double = 0.0,            // original price (struck through)
+    val unit: String = "",
+    val inStock: Boolean = true,
+    val approved: Boolean = false      // admin must approve before it shows to customers
+)
+
+/** Company master catalog. Sellers pick from these and set their own price. */
+data class CatalogItem(
+    @DocumentId val id: String = "",
+    val name: String = "",
+    val type: String = "product",     // product | service
+    val category: String = "",
+    val imageUrl: String = "",
+    val description: String = "",
+    val suggestedMrp: Double = 0.0,
+    val unit: String = ""
+)
+
+/** A service a provider offers (picked from catalog) with their pricing; admin-approved. */
+data class ServiceOffering(
+    @DocumentId val id: String = "",
+    val ownerUid: String = "",
+    val providerId: String = "",
+    val catalogId: String = "",
     val name: String = "",
     val category: String = "",
     val imageUrl: String = "",
     val price: Double = 0.0,
     val mrp: Double = 0.0,
-    val unit: String = "",
-    val inStock: Boolean = true
+    val approved: Boolean = false
 )
 
 data class CartItem(

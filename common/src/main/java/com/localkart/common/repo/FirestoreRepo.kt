@@ -38,6 +38,28 @@ class FirestoreRepo {
     suspend fun productsForStore(storeId: String): List<Product> =
         db.collection("products").whereEqualTo("storeId", storeId).get().await().toObjects()
 
+    /** Customer-facing: only approved products of a store. */
+    suspend fun approvedProductsForStore(storeId: String): List<Product> =
+        productsForStore(storeId).filter { it.approved }
+
+    // ---- Master catalog ----
+    suspend fun catalogItems(type: String): List<CatalogItem> =
+        db.collection("catalog").whereEqualTo("type", type).get().await()
+            .toObjects<CatalogItem>().sortedBy { it.name }
+
+    // ---- Service offerings (provider picks from catalog) ----
+    suspend fun addOffering(offering: ServiceOffering): String =
+        db.collection("serviceOfferings").add(offering).await().id
+
+    suspend fun offeringsForOwner(ownerUid: String): List<ServiceOffering> =
+        db.collection("serviceOfferings").whereEqualTo("ownerUid", ownerUid).get().await().toObjects()
+
+    suspend fun approvedOfferingsForProvider(providerId: String): List<ServiceOffering> =
+        db.collection("serviceOfferings").whereEqualTo("providerId", providerId)
+            .get().await().toObjects<ServiceOffering>().filter { it.approved }
+
+    suspend fun deleteOffering(id: String) = db.collection("serviceOfferings").document(id).delete().await()
+
     /** Products across several stores (e.g. all shops in a category). */
     suspend fun productsForStores(storeIds: List<String>): List<Product> {
         if (storeIds.isEmpty()) return emptyList()

@@ -4,6 +4,7 @@ import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.localkart.common.auth.AuthManager
+import com.localkart.common.model.CatalogItem
 import com.localkart.common.model.Product
 import com.localkart.common.model.ServiceProvider
 import com.localkart.common.model.Store
@@ -44,13 +45,25 @@ object Seeder {
 
         val products = listOf(
             Product(storeId = storeRefs[0].id, name = "Rice 5kg", category = "groceries",
-                price = 320.0, mrp = 360.0, unit = "5 kg", inStock = true),
+                price = 320.0, mrp = 360.0, unit = "5 kg", inStock = true, approved = true),
             Product(storeId = storeRefs[0].id, name = "Sunflower Oil 1L", category = "groceries",
-                price = 145.0, mrp = 160.0, unit = "1 L", inStock = true),
+                price = 145.0, mrp = 160.0, unit = "1 L", inStock = true, approved = true),
             Product(storeId = storeRefs[0].id, name = "Toor Dal 1kg", category = "groceries",
-                price = 130.0, mrp = 150.0, unit = "1 kg", inStock = true)
+                price = 130.0, mrp = 150.0, unit = "1 kg", inStock = true, approved = true)
         )
         products.forEach { db.collection("products").add(it).await() }
+
+        // Seed a small master catalog (company-defined) for sellers to pick from.
+        val catalog = listOf(
+            CatalogItem(name = "Rice 5kg", type = "product", category = "groceries", suggestedMrp = 360.0, unit = "5 kg"),
+            CatalogItem(name = "Sunflower Oil 1L", type = "product", category = "groceries", suggestedMrp = 160.0, unit = "1 L"),
+            CatalogItem(name = "Toor Dal 1kg", type = "product", category = "groceries", suggestedMrp = 150.0, unit = "1 kg"),
+            CatalogItem(name = "Wheat Atta 5kg", type = "product", category = "groceries", suggestedMrp = 280.0, unit = "5 kg"),
+            CatalogItem(name = "Screen Replacement", type = "service", category = "mobile_repairing", suggestedMrp = 1500.0),
+            CatalogItem(name = "Tap Repair", type = "service", category = "plumber", suggestedMrp = 250.0),
+            CatalogItem(name = "Fan Installation", type = "service", category = "electrician", suggestedMrp = 300.0)
+        )
+        catalog.forEach { db.collection("catalog").add(it).await() }
 
         val services = listOf(
             ServiceProvider(ownerUid = uid, name = "Anil Plumbing", category = "plumber",

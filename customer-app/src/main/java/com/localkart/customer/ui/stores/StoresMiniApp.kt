@@ -166,7 +166,7 @@ private fun StoresCategory(onOpenStore: (Store) -> Unit = {}) {
         val ids = shops.map { it.id }
         if (ids.isEmpty()) { products = emptyList(); return@LaunchedEffect }
         loadingP = true
-        runCatching { repo.productsForStores(ids) }.onSuccess { products = it }
+        runCatching { repo.productsForStores(ids) }.onSuccess { products = it.filter { p -> p.approved } }
         loadingP = false
     }
 
@@ -232,7 +232,19 @@ private fun ProductTileLive(p: Product, ctx: android.content.Context) {
                 Box(Modifier.fillMaxWidth().height(78.dp), Alignment.Center) { Icon(Icons.Default.Image, null) } }
             Spacer(Modifier.height(6.dp))
             Text(p.name, maxLines = 1, fontWeight = FontWeight.SemiBold)
-            Text("₹${p.price.toInt()}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("₹${p.price.toInt()}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                if (p.mrp > p.price) {
+                    Spacer(Modifier.width(5.dp))
+                    Text("₹${p.mrp.toInt()}", style = MaterialTheme.typography.labelSmall,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (p.mrp > p.price) {
+                Text("Save ${((p.mrp - p.price) / p.mrp * 100).toInt()}%", style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.SemiBold)
+            }
             Button(onClick = { Cart.add(p); Toast.makeText(ctx, "Added ${p.name}", Toast.LENGTH_SHORT).show() },
                 Modifier.fillMaxWidth(), enabled = p.inStock) { Text(if (p.inStock) "Add" else "Out") }
         }

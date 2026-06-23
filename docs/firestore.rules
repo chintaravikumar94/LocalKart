@@ -38,6 +38,16 @@ service cloud.firestore {
     }
 
     match /products/{id} { allow read: if true; allow write: if isSignedIn(); }
+
+    // Company master catalog: signed-in sellers read & pick; only admin edits.
+    match /catalog/{id} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+
+    // Service offerings (provider picks from catalog, admin approves).
+    match /serviceOfferings/{id} {
+      allow read: if true;
+      allow create: if isOwner(request.resource.data.ownerUid);
+      allow update, delete: if isAdmin() || isOwner(resource.data.ownerUid);
+    }
     match /banners/{id} { allow read: if true; allow write: if isAdmin(); }
     match /categories/{id} { allow read: if true; allow write: if isAdmin(); }
     match /growItems/{id} { allow read: if isSignedIn(); allow write: if isAdmin(); }

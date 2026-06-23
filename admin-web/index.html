@@ -141,6 +141,8 @@
       <a data-view="reviews"><span class="ico">⭐</span> Reviews</a>
       <div class="navgroup">People</div>
       <a data-view="customers"><span class="ico">👥</span> Customers</a>
+      <a data-view="owners"><span class="ico">🧑‍💼</span> Shop Owners</a>
+      <a data-view="providers"><span class="ico">🧰</span> Service Providers</a>
       <a data-view="admins"><span class="ico">🛡️</span> Admins</a>
       <div class="navgroup">Billing</div>
       <a data-view="plans"><span class="ico">💳</span> Plans</a>
@@ -240,6 +242,14 @@
     <section class="view" id="view-customers"><div class="toolbar"><input id="q-cust" placeholder="Search customers…" oninput="render()"></div>
       <div class="panel"><h3>Customers</h3><table><thead><tr><th></th><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead><tbody id="custRows"></tbody></table></div></section>
 
+    <section class="view" id="view-owners"><div class="toolbar"><input id="q-owner" placeholder="Search by shop, owner, contact or ID…" oninput="render()"></div>
+      <div class="panel"><h3>Shop Owners <span id="ownerCount" class="crumb"></span></h3>
+        <table><thead><tr><th></th><th>ID</th><th>Shop</th><th>Owner</th><th>Contact</th><th>Category</th><th>Rating</th><th>Status</th><th>Billing</th><th>Action</th></tr></thead><tbody id="shopOwnerRows"></tbody></table></div></section>
+
+    <section class="view" id="view-providers"><div class="toolbar"><input id="q-provider" placeholder="Search by business, provider, contact or ID…" oninput="render()"></div>
+      <div class="panel"><h3>Service Providers <span id="providerCount" class="crumb"></span></h3>
+        <table><thead><tr><th></th><th>ID</th><th>Business</th><th>Provider</th><th>Contact</th><th>Category</th><th>Rating</th><th>Status</th><th>Billing</th><th>Action</th></tr></thead><tbody id="providerRows"></tbody></table></div></section>
+
     <section class="view" id="view-admins">
       <div class="panel"><h3>Admins <button class="add" onclick="openAddAdmin()">＋ Add admin</button></h3>
         <table><thead><tr><th>UID</th><th>Role</th><th>Action</th></tr></thead><tbody id="adminRows"></tbody></table>
@@ -312,6 +322,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=19"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>

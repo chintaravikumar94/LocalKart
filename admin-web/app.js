@@ -270,6 +270,7 @@ function render() {
      <button class="mini" onclick="toggleField('banners','${b.id}','active',${!b.active})">${b.active ? "Disable" : "Enable"}</button>
      <button class="reject" onclick="del('banners','${b.id}')">Delete</button></td></tr>`).join("") || empty(5);
 
+  renderSellerPeople();
   renderBilling();
   drawCharts();
 }
@@ -292,6 +293,50 @@ function sellerList() {
   return Object.values(owners);
 }
 function billingFor(uid) { return (DATA.billing || []).find(b => b.id === uid) || {}; }
+function userFor(uid) { return (DATA.users || []).find(u => u.id === uid) || {}; }
+// Compact billing badge for a seller in the People views.
+function billStatusPill(uid) {
+  const b = billingFor(uid); const now = Date.now();
+  const active = b.subActive && (!b.nextDueAt || (b.nextDueAt.seconds ? b.nextDueAt.seconds * 1000 : 0) >= now);
+  if (!b.activationPaid) return '<span class="tag wait">Not activated</span>';
+  if (active) return '<span class="tag ok">Subscribed</span>';
+  if (b.lastPaidAt) return '<span class="tag no">Expired</span>';
+  return '<span class="tag ok">Activated</span>';
+}
+// Shop Owners & Service Providers tables (People section).
+function renderSellerPeople() {
+  const fill = (col, rowsId, qId, countId) => {
+    const rowsEl = document.getElementById(rowsId); if (!rowsEl) return;
+    const q = filt(qId);
+    const all = DATA[col] || [];
+    const list = all.filter(s => {
+      const u = userFor(s.ownerUid);
+      return ((s.name || "") + (u.name || "") + (u.email || "") + (s.phone || "") + idCode(col, s)).toLowerCase().includes(q);
+    });
+    const badge = document.getElementById(countId);
+    if (badge) badge.textContent = `· ${all.length} total · ${all.filter(s => s.approved).length} live`;
+    rowsEl.innerHTML = list.map(s => {
+      const u = userFor(s.ownerUid);
+      const contact = [u.email || "", s.phone || u.phone || ""].filter(Boolean).join("<br>") || "-";
+      const rate = (s.rating || 0).toFixed ? Number(s.rating || 0).toFixed(1) : s.rating;
+      return `<tr><td>${img(s.photoUrl)}</td>
+        <td><span class="tag info">${idCode(col, s)}</span></td>
+        <td><b>${s.name || "-"}</b></td>
+        <td>${u.name || "-"}</td>
+        <td style="font-size:12px">${contact}</td>
+        <td>${s.category ? catLabel(s.category) : "-"}</td>
+        <td>${star(s.rating)} ${rate}</td>
+        <td>${tag(s.approved)}</td>
+        <td>${billStatusPill(s.ownerUid)}</td>
+        <td class="row-actions">
+          <button class="mini" onclick="editListing('${col}','${s.id}')">Manage</button>
+          <button class="mini" onclick="viewHistory('${s.ownerUid}')">Billing</button>
+        </td></tr>`;
+    }).join("") || empty(10);
+  };
+  fill("stores", "shopOwnerRows", "q-owner", "ownerCount");
+  fill("services", "providerRows", "q-provider", "providerCount");
+}
 
 function renderBilling() {
   // Plans table (filtered by All / Stores / Services tab)

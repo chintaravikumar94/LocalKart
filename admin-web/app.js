@@ -296,8 +296,9 @@ function billingFor(uid) { return (DATA.billing || []).find(b => b.id === uid) |
 function renderBilling() {
   // Plans table (filtered by All / Stores / Services tab)
   const planRows = (DATA.plans || []).filter(p => tabKeepType(TAB.plans, p.type || "both"));
+  const planTag = t => t === "service" ? "feat" : t === "both" ? "wait" : "info";
   document.getElementById("planRows").innerHTML = planRows.map(p =>
-    `<tr><td>${p.category}</td><td><span class="tag info">${p.type || "both"}</span></td><td>${money(p.activationFee)}</td><td>${money(p.monthlyFee)} / mo</td>
+    `<tr><td><b>${catLabel(p.category)}</b></td><td><span class="tag ${planTag(p.type)}">${(p.type || "both").toUpperCase()}</span></td><td>${money(p.activationFee)}</td><td>${money(p.monthlyFee)} / mo</td>
      <td class="row-actions"><button class="mini" onclick="editPlan('${p.id}')">Edit</button><button class="reject" onclick="del('plans','${p.id}')">Delete</button></td></tr>`).join("") || empty(5);
 
   const sellers = sellerList();
@@ -408,14 +409,22 @@ function openPlan(p) {
     <label>Category</label><select id="pl-cat">${categoryOptions(p?.category, planWant(type))}</select>
     <label>One-time activation fee (₹)</label><input id="pl-act" type="number" value="${p?.activationFee ?? ""}">
     <label>Monthly subscription (₹)</label><input id="pl-mon" type="number" value="${p?.monthlyFee ?? ""}">
-    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="savePlan()">Save</button></div>`);
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="pl-save" onclick="savePlan()">Save</button></div>`);
 }
 async function savePlan() {
   const category = val("pl-cat"); if (!category) return toast("Category required", "bad");
-  const data = { category, type: val("pl-type"), activationFee: parseFloat(val("pl-act") || "0") || 0, monthlyFee: parseFloat(val("pl-mon") || "0") || 0 };
+  const type = val("pl-type");
+  const data = { category, type, activationFee: parseFloat(val("pl-act") || "0") || 0, monthlyFee: parseFloat(val("pl-mon") || "0") || 0 };
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
-  try { if (editPlanId) await db.collection("plans").doc(editPlanId).update(data); else await db.collection("plans").add(data); toast("Plan saved", "ok"); closeModal(); await loadAll(); }
-  catch (e) { toast("Failed: " + e.message, "bad"); }
+  const btn = document.getElementById("pl-save"); if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = "Saving…"; }
+  try {
+    // Reuse an existing plan for the same category + type so a single category never duplicates.
+    const dupe = (DATA.plans || []).find(p => p.id !== editPlanId && (p.category || "") === category && (p.type || "both") === type);
+    const targetId = editPlanId || dupe?.id;
+    if (targetId) { await db.collection("plans").doc(targetId).update(data); toast(dupe && !editPlanId ? "Updated existing plan" : "Plan saved", "ok"); }
+    else { await db.collection("plans").add(data); toast("Plan saved", "ok"); }
+    editPlanId = null; closeModal(); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
 }
 
 function markActivation(uid) {

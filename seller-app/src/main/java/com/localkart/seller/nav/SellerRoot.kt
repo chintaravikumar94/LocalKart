@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.localkart.common.model.UserRole
-import com.localkart.common.ui.PillTabRow
+import com.localkart.common.ui.HeaderPill
 import com.localkart.seller.ui.common.SellerMore
 import com.localkart.seller.ui.common.SellerNotifications
 import com.localkart.seller.ui.provider.ServiceProviderApp
@@ -30,14 +30,6 @@ fun SellerRoot(role: UserRole) {
     val showStore = role == UserRole.STORE_OWNER || role == UserRole.STORE_AND_PROVIDER
     val showProvider = role == UserRole.SERVICE_PROVIDER || role == UserRole.STORE_AND_PROVIDER
 
-    // Build the pill set dynamically based on role.
-    val pills = buildList<Triple<String, String, ImageVector>> {
-        add(Triple("more", "More", Icons.Default.MoreHoriz))
-        if (showStore) add(Triple("store", "Store Owner", Icons.Default.Storefront))
-        if (showProvider) add(Triple("provider", "Service Provider", Icons.Default.Engineering))
-    }
-    val keys = pills.map { it.first }
-
     var current by remember { mutableStateOf(if (showStore) "store" else "provider") }
     var overlay by remember { mutableStateOf<String?>(null) } // "more" | "notifications" | null
     var unread by remember { mutableIntStateOf(0) }
@@ -47,36 +39,23 @@ fun SellerRoot(role: UserRole) {
             .onSuccess { list -> unread = list.count { !it.read } }
     }
 
-    val selectedKey = if (overlay == "more") "more" else current
-    val selectedPill = keys.indexOf(selectedKey).coerceAtLeast(0)
-
     Scaffold(
         topBar = {
             Surface(tonalElevation = 2.dp, shadowElevation = 2.dp) {
-                Column {
-                    Row(
-                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("LocalKart Seller", style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
-                        Spacer(Modifier.weight(1f))
-                        if (unread > 0) {
-                            BadgedBox(badge = { Badge { Text("$unread") } }) {
-                                IconButton(onClick = { overlay = "notifications" }) {
-                                    Icon(Icons.Default.Notifications, "Notifications")
-                                }
-                            }
-                        } else {
-                            IconButton(onClick = { overlay = "notifications" }) {
-                                Icon(Icons.Default.Notifications, "Notifications")
-                            }
-                        }
+                Row(
+                    Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HeaderPill("More", Icons.Default.MoreHoriz, overlay == "more", Modifier.width(64.dp)) {
+                        overlay = "more"
                     }
-                    PillTabRow(tabs = pills.map { it.second to it.third }, selected = selectedPill) { i ->
-                        val key = keys[i]
-                        if (key == "more") overlay = "more" else { current = key; overlay = null }
-                    }
+                    if (showStore) HeaderPill("Store Owner", Icons.Default.Storefront,
+                        current == "store" && overlay == null, Modifier.weight(1f)) { current = "store"; overlay = null }
+                    if (showProvider) HeaderPill("Service Provider", Icons.Default.Engineering,
+                        current == "provider" && overlay == null, Modifier.weight(1f)) { current = "provider"; overlay = null }
+                    HeaderPill("Alerts", Icons.Default.Notifications, overlay == "notifications",
+                        Modifier.width(64.dp), badge = unread) { overlay = "notifications" }
                 }
             }
         }

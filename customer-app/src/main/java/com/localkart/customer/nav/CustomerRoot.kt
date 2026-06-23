@@ -12,7 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.localkart.common.ui.PillTabRow
+import com.localkart.common.ui.HeaderPill
 import com.localkart.customer.ui.common.MoreScreen
 import com.localkart.customer.ui.common.NotificationsScreen
 import com.localkart.customer.ui.services.ServicesMiniApp
@@ -34,47 +34,25 @@ fun CustomerRoot() {
             .onSuccess { list -> unread = list.count { !it.read } }
     }
 
-    val pills = listOf(
-        "More" to Icons.Default.MoreHoriz,
-        "Local Stores" to Icons.Default.Store,
-        "Local Services" to Icons.Default.Build
-    )
-    val selectedPill = when {
-        overlay == "more" -> 0
-        tab == 1 -> 1
-        else -> 2
-    }
-
     Scaffold(
         topBar = {
             Surface(tonalElevation = 2.dp, shadowElevation = 2.dp) {
-                Column {
-                    // slim brand row + notification bell
-                    Row(
-                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("LocalKart", style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
-                        Spacer(Modifier.weight(1f))
-                        if (unread > 0) {
-                            BadgedBox(badge = { Badge { Text("$unread") } }) {
-                                IconButton(onClick = { overlay = "notifications" }) {
-                                    Icon(Icons.Default.Notifications, "Notifications")
-                                }
-                            }
-                        } else {
-                            IconButton(onClick = { overlay = "notifications" }) {
-                                Icon(Icons.Default.Notifications, "Notifications")
-                            }
-                        }
+                Row(
+                    Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HeaderPill("More", Icons.Default.MoreHoriz, overlay == "more", Modifier.width(64.dp)) {
+                        overlay = "more"
                     }
-                    PillTabRow(tabs = pills, selected = selectedPill) { i ->
-                        when (i) {
-                            0 -> overlay = "more"
-                            1 -> { tab = 1; overlay = null }
-                            2 -> { tab = 2; overlay = null }
-                        }
+                    HeaderPill("Local Stores", Icons.Default.Store, tab == 1 && overlay == null, Modifier.weight(1f)) {
+                        tab = 1; overlay = null
+                    }
+                    HeaderPill("Local Services", Icons.Default.Build, tab == 2 && overlay == null, Modifier.weight(1f)) {
+                        tab = 2; overlay = null
+                    }
+                    HeaderPill("Alerts", Icons.Default.Notifications, overlay == "notifications", Modifier.width(64.dp), badge = unread) {
+                        overlay = "notifications"
                     }
                 }
             }

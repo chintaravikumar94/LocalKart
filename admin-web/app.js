@@ -23,6 +23,16 @@ function setTab(key, val, el) {
   if (el) { el.parentElement.querySelectorAll(".tab").forEach(b => b.classList.remove("on")); el.classList.add("on"); }
   render();
 }
+// Billing KPI-card / dropdown filter (click a card to filter the seller list).
+let BILLFILTER = "all";
+function setBillFilter(key, el) {
+  BILLFILTER = (BILLFILTER === key && key !== "all") ? "all" : key;  // click again to clear
+  document.querySelectorAll("#view-billing .kpi").forEach(c => { c.style.outline = ""; c.style.outlineOffset = ""; });
+  if (el && BILLFILTER !== "all") { el.style.outline = "2px solid #2563EB"; el.style.outlineOffset = "2px"; }
+  const sel = document.getElementById("f-bill");
+  if (sel) sel.value = ["all", "actpending", "actpaid", "active", "expired"].includes(BILLFILTER) ? BILLFILTER : "all";
+  render();
+}
 // store/service matchers
 function matchStore(t) { return t === "store" || t === "stores" || t === "both"; }
 function matchService(t) { return t === "service" || t === "services" || t === "both"; }
@@ -351,34 +361,65 @@ function renderBilling() {
   const now = Date.now();
   const isActive = b => b.subActive && (!b.nextDueAt || (b.nextDueAt.seconds ? b.nextDueAt.seconds * 1000 : 0) >= now);
 
-  // summary
-  let activation = 0, mrr = 0, active = 0, pending = 0, overdue = 0;
+  // running totals
+  let mrr = 0, active = 0, pending = 0, overdue = 0;
   sellers.forEach(s => {
     const b = billed(s.uid);
-    if (b.activationPaid) activation += (b.activationAmount || 0); else pending++;
+    if (!b.activationPaid) pending++;
     if (isActive(b)) { active++; mrr += (b.monthlyFee || 0); }
     else if (b.lastPaidAt) overdue++;
   });
-  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-  const thisMonth = (DATA.payments || []).filter(p => p.at && (p.at.seconds * 1000) >= monthStart.getTime()).reduce((s, p) => s + (p.amount || 0), 0);
-  document.getElementById("b-activation").textContent = money(activation);
-  document.getElementById("b-mrr").textContent = money(mrr);
-  document.getElementById("b-active").textContent = num(active);
-  document.getElementById("b-pending").textContent = num(pending);
-  const bm = document.getElementById("b-month"); if (bm) bm.textContent = money(thisMonth);
-  const bo = document.getElementById("b-overdue"); if (bo) bo.textContent = num(overdue);
 
-  const q = filt("q-bill"), f = document.getElementById("f-bill")?.value || "all";
+  // payment-date based metrics (today / this month)
+  const payMs = p => (p.at && p.at.seconds) ? p.at.seconds * 1000 : 0;
+  const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const pays = DATA.payments || [];
+  const todays = pays.filter(p => payMs(p) >= dayStart.getTime());
+  const months = pays.filter(p => payMs(p) >= monthStart.getTime());
+  const todayAct = todays.filter(p => p.type === "activation");
+  const todaySub = todays.filter(p => p.type === "monthly");
+  const sum = arr => arr.reduce((s, p) => s + (p.amount || 0), 0);
+  const uidsToday = new Set(todays.map(p => p.uid));
+  const uidsTodayAct = new Set(todayAct.map(p => p.uid));
+  const uidsTodaySub = new Set(todaySub.map(p => p.uid));
+  const uidsMonth = new Set(months.map(p => p.uid));
+
+  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setTxt("b-today", money(sum(todays)));
+  setTxt("b-today-sub", todays.length ? `· ${todays.length} payment(s)` : "");
+  setTxt("b-todayact", num(todayAct.length));
+  setTxt("b-todayact-amt", todayAct.length ? `· ${money(sum(todayAct))}` : "");
+  setTxt("b-todaysub", num(todaySub.length));
+  setTxt("b-todaysub-amt", todaySub.length ? `· ${money(sum(todaySub))}` : "");
+  setTxt("b-month", money(sum(months)));
+  setTxt("b-mrr", money(mrr));
+  setTxt("b-active", num(active));
+  setTxt("b-pending", num(pending));
+  setTxt("b-overdue", num(overdue));
+
+  const FLABEL = { all: "", today: "paid today", todayAct: "activated today", todaySub: "subscription paid today",
+    month: "paid this month", active: "active subscriptions", actpending: "activation pending",
+    actpaid: "activation paid", expired: "subscription expired", overdue: "overdue" };
+  const q = filt("q-bill"), f = BILLFILTER;
   const rows = sellers.filter(s => {
     if (!tabKeepType(TAB.billing, s.type)) return false;
     if (q && !(s.name || "").toLowerCase().includes(q)) return false;
     const b = billed(s.uid);
-    if (f === "actpending") return !b.activationPaid;
-    if (f === "actpaid") return !!b.activationPaid;
-    if (f === "active") return isActive(b);
-    if (f === "expired") return !isActive(b);
-    return true;
+    switch (f) {
+      case "today": return uidsToday.has(s.uid);
+      case "todayAct": return uidsTodayAct.has(s.uid);
+      case "todaySub": return uidsTodaySub.has(s.uid);
+      case "month": return uidsMonth.has(s.uid);
+      case "actpending": return !b.activationPaid;
+      case "actpaid": return !!b.activationPaid;
+      case "active": return isActive(b);
+      case "expired": return !isActive(b);
+      case "overdue": return !isActive(b) && !!b.lastPaidAt;
+      default: return true;
+    }
   });
+  setTxt("billFilterLabel", f === "all" ? `· ${rows.length} seller(s)` : `· ${FLABEL[f] || f} · ${rows.length} seller(s)`);
   document.getElementById("billRows").innerHTML = rows.map(s => {
     const b = billed(s.uid);
     const act = b.activationPaid

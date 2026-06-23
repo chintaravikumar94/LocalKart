@@ -266,13 +266,16 @@
         <table><thead><tr><th>Category</th><th>Type</th><th>Activation (one-time)</th><th>Monthly</th><th>Action</th></tr></thead><tbody id="planRows"></tbody></table></div></section>
 
     <section class="view" id="view-billing">
+      <div style="padding:0 18px 4px;color:var(--muted);font-size:12px">Tap a card to filter the list below.</div>
       <div class="kpis">
-        <div class="kpi"><div class="ic">💰</div><div class="n" id="b-activation">—</div><div class="l">Activation collected</div><div class="bar"></div></div>
-        <div class="kpi"><div class="ic">🔁</div><div class="n" id="b-mrr">—</div><div class="l">Monthly revenue (MRR)</div><div class="bar"></div></div>
-        <div class="kpi"><div class="ic">✅</div><div class="n" id="b-active">—</div><div class="l">Active subscriptions</div><div class="bar"></div></div>
-        <div class="kpi"><div class="ic">⏳</div><div class="n" id="b-pending">—</div><div class="l">Activation pending</div><div class="bar"></div></div>
-        <div class="kpi"><div class="ic">📆</div><div class="n" id="b-month">—</div><div class="l">Collected this month</div><div class="bar"></div></div>
-        <div class="kpi"><div class="ic">⚠️</div><div class="n" id="b-overdue">—</div><div class="l">Overdue subscriptions</div><div class="bar"></div></div>
+        <div class="kpi" style="cursor:pointer" onclick="setBillFilter('today',this)"><div class="ic">📅</div><div class="n" id="b-today">—</div><div class="l">Collected today <span id="b-today-sub" class="crumb"></span></div><div class="bar"></div></div>
+        <div class="kpi" style="cursor:pointer" onclick="setBillFilter('todayAct',this)"><div class="ic">🆕</div><div class="n" id="b-todayact">—</div><div class="l">Activations today <span id="b-todayact-amt" class="crumb"></span></div><div class="bar"></div></div>
+        <div class="kpi" style="cursor:pointer" onclick="setBillFilter('todaySub',this)"><div class="ic">🔁</div><div class="n" id="b-todaysub">—</div><div class="l">Subscriptions today <span id="b-todaysub-amt" class="crumb"></span></div><div class="bar"></div></div>
+        <div class="kpi" style="cursor:pointer" onclick="setBillFilter('month',this)"><div class="ic">📆</div><div class="n" id="b-month">—</div><div class="l">Collected this month</div><div class="bar"></div></div>
+        <div class="kpi" style="cursor:pointer" onclick="setBillFilter('active',this)"><div class="ic">✅</div><div class="n" id="b-active">—</div><div class="l">Active subscriptions</div><div class="bar"></div></div>
+        <div class="kpi" style="cursor:pointer" onclick="setBillFilter('actpending',this)"><div class="ic">⏳</div><div class="n" id="b-pending">—</div><div class="l">Activation pending</div><div class="bar"></div></div>
+        <div class="kpi" style="cursor:pointer" onclick="setBillFilter('overdue',this)"><div class="ic">⚠️</div><div class="n" id="b-overdue">—</div><div class="l">Overdue subscriptions</div><div class="bar"></div></div>
+        <div class="kpi"><div class="ic">💰</div><div class="n" id="b-mrr">—</div><div class="l">Monthly revenue (MRR)</div><div class="bar"></div></div>
       </div>
       <div class="tabs">
         <button class="tab on" onclick="setTab('billing','all',this)">All</button>
@@ -282,7 +285,8 @@
       <div class="toolbar">
         <input id="q-bill" placeholder="Search sellers…" oninput="render()">
         <button class="ghost" onclick="exportBilling()">⬇ Export CSV</button>
-        <select id="f-bill" onchange="render()">
+        <button class="ghost" onclick="setBillFilter('all')">Clear filter</button>
+        <select id="f-bill" onchange="setBillFilter(this.value)">
           <option value="all">All sellers</option>
           <option value="actpending">Activation pending</option>
           <option value="actpaid">Activation paid</option>
@@ -290,7 +294,7 @@
           <option value="expired">Subscription expired</option>
         </select>
       </div>
-      <div class="panel"><h3>Shop owners &amp; service providers — activation &amp; subscription</h3>
+      <div class="panel"><h3>Shop owners &amp; service providers — activation &amp; subscription <span id="billFilterLabel" class="crumb"></span></h3>
         <table><thead><tr><th>Seller</th><th>Type</th><th>Category</th><th>Activation</th><th>Subscription</th><th>Actions</th></tr></thead><tbody id="billRows"></tbody></table></div></section>
 
     <section class="view" id="view-notifications">
@@ -322,6 +326,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=20"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>

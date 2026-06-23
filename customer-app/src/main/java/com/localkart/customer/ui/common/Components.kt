@@ -149,12 +149,10 @@ fun BannerSlider(imageUrls: List<String>, dwellMillis: Int = 4000) {
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         HorizontalPager(
             state = pager,
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            pageSpacing = 10.dp,
             modifier = Modifier.fillMaxWidth()
         ) { page ->
             Box(
-                Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(18.dp))
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(150.dp).clip(RoundedCornerShape(18.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 AsyncImage(

@@ -125,10 +125,9 @@ fun SellerBanners(urls: List<String>, dwellMillis: Int = 4000) {
         pager.animateScrollToPage((pager.currentPage + 1) % urls.size, animationSpec = tween(600))
     }
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-        HorizontalPager(pager, contentPadding = PaddingValues(horizontal = 16.dp), pageSpacing = 12.dp,
-            modifier = Modifier.fillMaxWidth()) { page ->
+        HorizontalPager(pager, modifier = Modifier.fillMaxWidth()) { page ->
             val url = urls[page]
-            Box(Modifier.fillMaxWidth().aspectRatio(2.2f).clip(RoundedCornerShape(18.dp))
+            Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(150.dp).clip(RoundedCornerShape(18.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)) {
                 if (url.startsWith("http")) {
                     coil.compose.AsyncImage(
@@ -161,12 +160,14 @@ fun SellerBanners(urls: List<String>, dwellMillis: Int = 4000) {
 @Composable
 fun LiveSellerBanners(fallback: List<String> = listOf("a", "b", "c")) {
     val repo = remember { com.localkart.common.repo.FirestoreRepo() }
-    var urls by remember { mutableStateOf<List<String>>(emptyList()) }
+    var banners by remember { mutableStateOf<List<com.localkart.common.model.Banner>>(emptyList()) }
+    var settings by remember { mutableStateOf(com.localkart.common.model.BannerSettings()) }
     LaunchedEffect(Unit) {
-        runCatching { repo.bannersFor("seller") }
-            .onSuccess { list -> urls = list.mapNotNull { it.imageUrl.ifBlank { null } } }
+        runCatching { repo.bannersFor("seller") }.onSuccess { banners = it }
+        runCatching { repo.bannerSettings() }.onSuccess { settings = it }
     }
-    SellerBanners(if (urls.isNotEmpty()) urls else fallback)
+    val show = if (banners.isNotEmpty()) banners else fallback.map { com.localkart.common.model.Banner(imageUrl = it) }
+    com.localkart.common.ui.BannerCarousel(show, settings)
 }
 
 data class QuickAction(val label: String, val icon: ImageVector)

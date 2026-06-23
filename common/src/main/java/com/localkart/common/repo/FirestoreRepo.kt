@@ -58,6 +58,15 @@ class FirestoreRepo {
             .filter { it.audience.isBlank() || it.audience == audience || it.audience == "both" }
             .sortedBy { it.order }
 
+    /** Global default banner design (settings/banners). */
+    suspend fun bannerSettings(): BannerSettings =
+        runCatching {
+            db.collection("settings").document("banners").get().await().toObject(BannerSettings::class.java)
+        }.getOrNull() ?: BannerSettings()
+
+    suspend fun saveBannerSettings(s: BannerSettings) =
+        db.collection("settings").document("banners").set(s).await()
+
     suspend fun categories(type: String): List<Category> =
         db.collection("categories").whereEqualTo("type", type).get().await().toObjects()
 

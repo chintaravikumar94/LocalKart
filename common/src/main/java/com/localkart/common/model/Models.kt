@@ -135,7 +135,20 @@ data class Banner(
     val target: String = "",          // deep link / category
     val audience: String = "customer", // customer | seller | both
     val active: Boolean = true,
-    val order: Int = 0
+    val order: Int = 0,
+    // Per-banner style overrides; "default" = inherit the global BannerSettings.
+    val cornerStyle: String = "default", // default | rounded | square
+    val borderStyle: String = "default", // default | on | off
+    val heightStyle: String = "default", // default | short | medium | tall
+    val template: String = "default"     // default | full | overlay | framed
+)
+
+/** Global default banner design, set by admin (settings/banners). */
+data class BannerSettings(
+    val cornerStyle: String = "rounded", // rounded | square
+    val border: Boolean = false,
+    val heightStyle: String = "medium",  // short | medium | tall
+    val template: String = "full"        // full | overlay | framed
 )
 
 data class Category(

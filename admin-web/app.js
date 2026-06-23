@@ -144,6 +144,7 @@ async function loadAll() {
     fetchCol("orders", DEMO.orders), fetchCol("bookings", DEMO.bookings), fetchCol("reviews", DEMO.reviews),
     fetchCol("users", DEMO.users), fetchCol("growItems", DEMO.growItems), fetchCol("banners", DEMO.banners)
   ]);
+  await loadBannerSettings();
   Object.assign(DATA, { stores, services, products, orders, bookings, reviews, users, grow, banners });
   PENDING = [
     ...stores.filter(x => !x.approved).map(x => ({ ...x, _col: "stores" })),
@@ -360,6 +361,12 @@ function openBanner(b) {
     <img id="b-prev" src="${b?.imageUrl || ""}" style="display:${b?.imageUrl ? "block" : "none"};width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
     <label>Order</label><input id="b-order" type="number" value="${b?.order ?? 1}">
     <label>Target (optional)</label><input id="b-target" value="${b?.target || ""}" placeholder="category or deep link">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label>Corner</label><select id="b-corner">${opt("default","Default", b?.cornerStyle||"default")}${opt("rounded","Rounded", b?.cornerStyle||"default")}${opt("square","Square", b?.cornerStyle||"default")}</select></div>
+      <div><label>Border</label><select id="b-border">${opt("default","Default", b?.borderStyle||"default")}${opt("on","On", b?.borderStyle||"default")}${opt("off","Off", b?.borderStyle||"default")}</select></div>
+      <div><label>Height</label><select id="b-height">${opt("default","Default", b?.heightStyle||"default")}${opt("short","Short", b?.heightStyle||"default")}${opt("medium","Medium", b?.heightStyle||"default")}${opt("tall","Tall", b?.heightStyle||"default")}</select></div>
+      <div><label>Template</label><select id="b-template">${opt("default","Default", b?.template||"default")}${opt("full","Full image", b?.template||"default")}${opt("overlay","Image + title", b?.template||"default")}${opt("framed","Framed", b?.template||"default")}</select></div>
+    </div>
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="b-save" onclick="saveBanner()">Save</button></div>`);
 }
 async function saveBanner() {
@@ -372,7 +379,11 @@ async function saveBanner() {
     const data = {
       title, target: val("b-target"),
       audience: document.getElementById("b-aud")?.value || "customer",
-      order: parseInt(val("b-order") || "1", 10)
+      order: parseInt(val("b-order") || "1", 10),
+      cornerStyle: document.getElementById("b-corner")?.value || "default",
+      borderStyle: document.getElementById("b-border")?.value || "default",
+      heightStyle: document.getElementById("b-height")?.value || "default",
+      template: document.getElementById("b-template")?.value || "default"
     };
     if (imageUrl) data.imageUrl = imageUrl;
     if (editBannerId) {
@@ -384,6 +395,32 @@ async function saveBanner() {
     }
     closeModal(); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
+}
+
+/* ---------------- GLOBAL BANNER DESIGN ---------------- */
+let BSETTINGS = { cornerStyle: "rounded", border: false, heightStyle: "medium", template: "full" };
+async function loadBannerSettings() {
+  if (!LIVE) return;
+  try { const d = await db.collection("settings").doc("banners").get(); if (d.exists) BSETTINGS = { ...BSETTINGS, ...d.data() }; } catch (e) { console.warn(e); }
+}
+function openBannerSettings() {
+  const s = BSETTINGS;
+  modal(`<h3>Global banner design</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:6px">Applies to every banner set to "Default".</p>
+    <label>Corner</label><select id="s-corner">${opt("rounded","Rounded", s.cornerStyle)}${opt("square","Square", s.cornerStyle)}</select>
+    <label>Border</label><select id="s-border">${opt("false","Off", String(s.border))}${opt("true","On", String(s.border))}</select>
+    <label>Height</label><select id="s-height">${opt("short","Short", s.heightStyle)}${opt("medium","Medium", s.heightStyle)}${opt("tall","Tall", s.heightStyle)}</select>
+    <label>Template</label><select id="s-template">${opt("full","Full image", s.template)}${opt("overlay","Image + title", s.template)}${opt("framed","Framed", s.template)}</select>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveBannerSettings()">Save</button></div>`);
+}
+async function saveBannerSettings() {
+  const data = {
+    cornerStyle: val("s-corner"), border: val("s-border") === "true",
+    heightStyle: val("s-height"), template: val("s-template")
+  };
+  if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
+  try { await db.collection("settings").doc("banners").set(data); BSETTINGS = data; toast("Banner design saved", "ok"); closeModal(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
 }
 function val(id) { return (document.getElementById(id)?.value || "").trim(); }
 

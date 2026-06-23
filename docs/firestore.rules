@@ -66,6 +66,12 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
+    // App settings (e.g. global banner design): public read, admin write.
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Reviews: anyone can read; a signed-in customer can post their own.
     match /reviews/{id} {
       allow read: if true;

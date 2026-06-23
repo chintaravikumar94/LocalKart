@@ -53,7 +53,7 @@ fun StoreOwnerApp() {
                         }
                     }
                 )
-                OwnerTab.GROW -> GrowYourBusiness()
+                OwnerTab.GROW -> GrowYourBusiness("store_owner")
                 OwnerTab.ORDERS -> OrdersScreen()
                 OwnerTab.REQUESTS -> RequestsScreen("Service Requests")
                 OwnerTab.APPTS -> AppointmentsScreen()
@@ -64,11 +64,11 @@ fun StoreOwnerApp() {
 }
 
 @Composable
-private fun OwnerHome(onAction: (String) -> Unit = {}) {
+private fun OwnerHome(onAction: (String) -> Unit = {}, vm: com.localkart.seller.ui.common.SellerHomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     LazyColumn {
-        item { WelcomeHeader("Ravikumar") }
-        item { ShopProfileCard("Ravikumar Stores", "Groceries · Service provider available") }
-        item { MetricRow("Orders Today" to "14", "Sales" to "₹9,240") }
+        item { WelcomeHeader(vm.name) }
+        item { ShopProfileCard(vm.storeName, vm.storeCategory, vm.storeOpen) { vm.toggleStoreOpen(it) } }
+        item { MetricRow("Orders Today" to "${vm.ordersToday}", "Sales" to "₹${vm.salesToday.toInt()}") }
         item { LiveSellerBanners() }
         item { InfoStrip(listOf(
             "New: enable UPI auto-settlement",

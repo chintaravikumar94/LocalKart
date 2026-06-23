@@ -177,81 +177,54 @@ fun QuickActionsGrid(actions: List<QuickAction>, onClick: (String) -> Unit = {})
     }
 }
 
-/** "Grow your business" page: admin-added promo cards. */
+/** "Grow your business": admin-added promo items for this seller role, live from Firestore. */
 @Composable
-fun GrowYourBusiness() {
+fun GrowYourBusiness(role: String = "all") {
+    val repo = remember { com.localkart.common.repo.FirestoreRepo() }
+    var items by remember { mutableStateOf<List<com.localkart.common.model.GrowItem>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(role) {
+        runCatching { repo.growItems(role) }.onSuccess { items = it }
+        loading = false
+    }
     LazyColumn {
         item {
             Text("Grow Your Business", Modifier.padding(16.dp),
                 style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
-        items((1..6).toList()) { i ->
-            ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer) {
-                        Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.TrendingUp, null) } }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Growth program $i", fontWeight = FontWeight.SemiBold)
-                        Text("Boost visibility, get more customers. Easy steps.",
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                    Button(onClick = {}) { Text("Start") }
+        when {
+            loading -> item {
+                Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) { CircularProgressIndicator() }
+            }
+            items.isEmpty() -> item {
+                Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
+                    Text("No growth programs yet. Check back soon!",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-        }
-    }
-}
-
-/**
- * Generic stat-tabs + search + filter-chip list page. Used for Orders, Requests,
- * Appointments, Job Requests and Bookings (they share the same shape).
- */
-@Composable
-fun StatListPage(
-    title: String,
-    metrics: List<Pair<String, String>>,
-    filters: List<String>,
-    rowSubtitle: (Int) -> String
-) {
-    var query by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf(filters.first()) }
-    Column(Modifier.fillMaxSize()) {
-        Text(title, Modifier.padding(16.dp), style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold)
-        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(metrics) { (l, v) -> MetricChip(l, v) }
-        }
-        OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth().padding(12.dp),
-            placeholder = { Text("Search") }, leadingIcon = { Icon(Icons.Default.Search, null) }, singleLine = true)
-        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(filters) { f -> FilterChip(f == filter, onClick = { filter = f }, label = { Text(f) }) }
-        }
-        LazyColumn(Modifier.weight(1f)) {
-            items((1..10).toList()) { i ->
-                ListItem(
-                    headlineContent = { Text("$title #$i") },
-                    supportingContent = { Text(rowSubtitle(i)) },
-                    leadingContent = { Icon(Icons.Default.Receipt, null) },
-                    trailingContent = { AssistChip(onClick = {}, label = { Text(filter) }) },
-                    modifier = Modifier.clickable { }
-                )
-                HorizontalDivider()
+            else -> items(items) { g ->
+                ElevatedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (g.imageUrl.isNotBlank())
+                            coil.compose.AsyncImage(g.imageUrl, g.title,
+                                Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                        else Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                            Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.TrendingUp, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(g.title, fontWeight = FontWeight.SemiBold)
+                            if (g.description.isNotBlank())
+                                Text(g.description, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                        }
+                        if (g.ctaText.isNotBlank()) Button(onClick = {}) { Text(g.ctaText) }
+                    }
+                }
             }
-        }
-    }
-}
-
-@Composable
-private fun MetricChip(label: String, value: String) {
-    ElevatedCard {
-        Column(Modifier.padding(horizontal = 18.dp, vertical = 12.dp)) {
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(label, style = MaterialTheme.typography.labelSmall)
         }
     }
 }

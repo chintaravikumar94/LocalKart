@@ -30,8 +30,15 @@ fun ServiceProviderApp() {
     }) { pad ->
         Box(Modifier.padding(pad)) {
             when (sel) {
-                ProviderTab.HOME -> ProviderHome()
-                ProviderTab.GROW -> GrowYourBusiness()
+                ProviderTab.HOME -> ProviderHome(onAction = { a ->
+                    when (a) {
+                        "Grow" -> sel = ProviderTab.GROW
+                        "Job Requests" -> sel = ProviderTab.JOBS
+                        "Bookings" -> sel = ProviderTab.BOOKINGS
+                        "My Profile" -> sel = ProviderTab.PROFILE
+                    }
+                })
+                ProviderTab.GROW -> GrowYourBusiness("service_provider")
                 ProviderTab.JOBS -> RequestsScreen("Job Requests")
                 ProviderTab.BOOKINGS -> ProviderBookingsScreen()
                 ProviderTab.PROFILE -> SellerProfileScreen()
@@ -41,23 +48,26 @@ fun ServiceProviderApp() {
 }
 
 @Composable
-private fun ProviderHome() {
+private fun ProviderHome(onAction: (String) -> Unit = {}, vm: com.localkart.seller.ui.common.SellerHomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     LazyColumn {
-        item { WelcomeHeader("Ravikumar") }
-        item { ShopProfileCard("Ravikumar Electrical", "Electrician") }
-        item { MetricRow("New Requests" to "6", "Upcoming Bookings" to "3") }
+        item { WelcomeHeader(vm.name) }
+        item { ShopProfileCard(vm.serviceName, vm.serviceCategory, vm.available) { vm.toggleAvailable(it) } }
+        item { MetricRow("New Requests" to "${vm.newRequests}", "Upcoming Bookings" to "${vm.upcomingBookings}") }
         item { LiveSellerBanners() }
         item { InfoStrip(listOf(
             "Respond fast to rank higher in search",
             "Add your skills to get more jobs",
             "3 new job requests near you")) }
         item {
-            QuickActionsGrid(listOf(
-                QuickAction("Grow", Icons.Default.TrendingUp),
-                QuickAction("Job Requests", Icons.Default.Work),
-                QuickAction("Bookings", Icons.Default.EventAvailable),
-                QuickAction("My Profile", Icons.Default.Person)
-            ))
+            QuickActionsGrid(
+                listOf(
+                    QuickAction("Grow", Icons.Default.TrendingUp),
+                    QuickAction("Job Requests", Icons.Default.Work),
+                    QuickAction("Bookings", Icons.Default.EventAvailable),
+                    QuickAction("My Profile", Icons.Default.Person)
+                ),
+                onClick = onAction
+            )
         }
     }
 }

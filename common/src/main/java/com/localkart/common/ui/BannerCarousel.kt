@@ -55,7 +55,13 @@ fun BannerCarousel(banners: List<Banner>, settings: BannerSettings, dwellMillis:
     }
 
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-        HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth()) { page ->
+        HorizontalPager(
+            state = pager,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 0.dp),
+            pageSpacing = 0.dp,
+            pageSize = androidx.compose.foundation.pager.PageSize.Fill
+        ) { page ->
             val b = banners[page]
             val corner = resolveCorner(b, settings)
             val height = resolveHeight(b, settings)
@@ -86,21 +92,27 @@ fun BannerCarousel(banners: List<Banner>, settings: BannerSettings, dwellMillis:
             }
         }
         Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        // Story-style segmented progress: one segment per banner; current one fills over time.
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             repeat(banners.size) { i ->
-                val active = i == pager.currentPage
+                val fill = when {
+                    i < pager.currentPage -> 1f
+                    i == pager.currentPage -> progress
+                    else -> 0f
+                }
                 Box(
-                    Modifier.padding(horizontal = 3.dp).height(6.dp).width(if (active) 20.dp else 6.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
-                )
+                    Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Box(
+                        Modifier.fillMaxHeight().fillMaxWidth(fill).clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(3.dp).clip(RoundedCornerShape(50)),
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
     }
 }

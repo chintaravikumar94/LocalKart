@@ -1,4 +1,4 @@
-/* LocalKart Admin Console — live Firebase dashboard. */
+/* LocalKart Admin Console — full control center for both apps. */
 const firebaseConfig = {
   apiKey: "AIzaSyC4h_btIhf5cGkMFm2N92j8RsdBfNt7DZY",
   authDomain: "localkart-7dfb4.firebaseapp.com",
@@ -12,41 +12,27 @@ let db = null, auth = null, storage = null, LIVE = false;
 try {
   if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
     firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    db = firebase.firestore();
-    storage = firebase.storage();
-    LIVE = true;
+    auth = firebase.auth(); db = firebase.firestore(); storage = firebase.storage(); LIVE = true;
   }
-} catch (e) { console.warn("Firebase init skipped:", e); }
+} catch (e) { console.warn("init skipped", e); }
 
-/** Uploads the chosen file to Storage and returns its download URL ("" if none). */
-async function uploadImage(fileInputId, folder) {
-  const f = document.getElementById(fileInputId)?.files?.[0];
-  if (!f || !LIVE) return "";
-  const ref = storage.ref().child(`${folder}/${Date.now()}_${f.name.replace(/\s+/g, "_")}`);
-  await ref.put(f);
-  return await ref.getDownloadURL();
-}
+/* ---------- helpers ---------- */
+function toast(msg, kind) { const t = document.createElement("div"); t.className = "toast " + (kind || ""); t.textContent = msg; document.getElementById("toast").appendChild(t); setTimeout(() => t.remove(), 3200); }
+function modal(html) { document.getElementById("modalBox").innerHTML = html; document.getElementById("modalBg").classList.add("open"); }
+function closeModal() { document.getElementById("modalBg").classList.remove("open"); }
+document.getElementById("modalBg").addEventListener("click", e => { if (e.target.id === "modalBg") closeModal(); });
+function opt(v, label, cur) { return `<option value="${v}" ${v === cur ? "selected" : ""}>${label}</option>`; }
+function val(id) { return (document.getElementById(id)?.value || "").trim(); }
+const tag = ok => ok ? '<span class="tag ok">Approved</span>' : '<span class="tag wait">Pending</span>';
+const num = n => (n || 0).toLocaleString("en-IN");
+const money = n => "₹" + num(Math.round(n || 0));
+const esc = s => (s == null ? "" : String(s).replace(/"/g, "&quot;"));
+const star = r => '<span class="stars">' + "★".repeat(Math.round(r || 0)).padEnd(5, "☆") + "</span>";
+const img = u => u ? `<img class="avatar" src="${u}">` : `<span class="avatar" style="display:inline-grid;place-items:center">·</span>`;
+const filt = id => (document.getElementById(id)?.value || "").toLowerCase();
 
-/** Live preview for a file input -> <img>. */
-function previewFile(inputId, imgId) {
-  const f = document.getElementById(inputId)?.files?.[0];
-  const img = document.getElementById(imgId);
-  if (f && img) { img.src = URL.createObjectURL(f); img.style.display = "block"; }
-}
-
-/* ---------------- TOAST ---------------- */
-function toast(msg, kind) {
-  const t = document.createElement("div");
-  t.className = "toast " + (kind || "");
-  t.textContent = msg;
-  document.getElementById("toast").appendChild(t);
-  setTimeout(() => t.remove(), 3200);
-}
-
-/* ---------------- AUTH ---------------- */
+/* ---------- auth ---------- */
 function err(m) { document.getElementById("loginErr").textContent = m || ""; }
-
 function showApp(user) {
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "grid";
@@ -56,47 +42,27 @@ function showApp(user) {
   document.getElementById("me-av").textContent = (email[0] || "A").toUpperCase();
   loadAll();
 }
-
-async function checkAdmin(uid) {
-  if (!LIVE) return true;
-  const doc = await db.collection("admins").doc(uid).get();
-  return doc.exists;
-}
-
+async function checkAdmin(uid) { if (!LIVE) return true; const d = await db.collection("admins").doc(uid).get(); return d.exists; }
 async function loginGoogle() {
-  err("");
-  if (!LIVE) return showApp({ email: "demo-admin@localkart.app" });
-  try {
-    const cred = await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-    if (!(await checkAdmin(cred.user.uid))) { err("Not an admin account."); return auth.signOut(); }
-    showApp(cred.user);
-  } catch (e) { err(e.message); }
+  err(""); if (!LIVE) return showApp({ email: "demo-admin@localkart.app" });
+  try { const c = await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); if (!(await checkAdmin(c.user.uid))) { err("Not an admin account."); return auth.signOut(); } showApp(c.user); }
+  catch (e) { err(e.message); }
 }
-
 async function loginEmail() {
-  err("");
-  const email = document.getElementById("email").value;
-  const pass = document.getElementById("password").value;
+  err(""); const email = val("email"), pass = document.getElementById("password").value;
   if (!LIVE) return showApp({ email });
-  try {
-    const cred = await auth.signInWithEmailAndPassword(email, pass);
-    if (!(await checkAdmin(cred.user.uid))) { err("Not an admin account."); return auth.signOut(); }
-    showApp(cred.user);
-  } catch (e) { err(e.message); }
+  try { const c = await auth.signInWithEmailAndPassword(email, pass); if (!(await checkAdmin(c.user.uid))) { err("Not an admin account."); return auth.signOut(); } showApp(c.user); }
+  catch (e) { err(e.message); }
 }
+function logout() { if (LIVE) auth.signOut(); document.getElementById("app").style.display = "none"; document.getElementById("login").style.display = "flex"; }
 
-function logout() {
-  if (LIVE) auth.signOut();
-  document.getElementById("app").style.display = "none";
-  document.getElementById("login").style.display = "flex";
-}
-
-/* ---------------- NAV ---------------- */
+/* ---------- nav ---------- */
 const CRUMBS = {
-  dashboard: "Overview of your marketplace", approvals: "Review & publish new sellers",
-  stores: "All registered stores", services: "All service providers", products: "Catalog items",
-  orders: "Customer orders", bookings: "Service bookings", reviews: "Customer feedback",
-  customers: "Registered users", grow: "Promos shown to sellers", banners: "Home banners"
+  dashboard: "Overview of your marketplace", approvals: "Review & publish new sellers", stores: "Manage stores",
+  services: "Manage service providers", products: "Catalog items", categories: "Store & service categories",
+  orders: "Customer orders", bookings: "Service bookings", appointments: "Store appointments",
+  requests: "Service / job requests", reviews: "Customer feedback", customers: "Registered users",
+  admins: "Console administrators", notifications: "Broadcast to apps", grow: "Seller promos", banners: "Home banners"
 };
 document.getElementById("nav").addEventListener("click", e => {
   const a = e.target.closest("a"); if (!a) return;
@@ -109,320 +75,350 @@ document.getElementById("nav").addEventListener("click", e => {
   document.getElementById("crumb").textContent = CRUMBS[v] || "";
 });
 
-/* ---------------- DATA ---------------- */
+/* ---------- data ---------- */
 const DEMO = {
-  stores: [
-    { name: "Ravikumar Grocery", category: "groceries", rating: 4.6, approved: true, isOpen: true, address: "Madhapur" },
-    { name: "City Mobile Care", category: "mobile_repairing", rating: 4.3, approved: true, isOpen: true, address: "Kondapur" },
-    { name: "Sri Fancy World", category: "fancy", rating: 4.1, approved: false, isOpen: true, address: "Gachibowli" }
-  ],
-  services: [
-    { name: "Ravi Electricals", category: "electrician", rating: 4.8, approved: true, available: true, address: "Kondapur" },
-    { name: "Anil Plumbing", category: "plumber", rating: 4.5, approved: false, available: true, address: "Madhapur" }
-  ],
+  stores: [{ name: "Ravikumar Grocery", category: "groceries", rating: 4.6, approved: true, isOpen: true, address: "Madhapur" }],
+  services: [{ name: "Ravi Electricals", category: "electrician", rating: 4.8, approved: true, available: true, address: "Kondapur" }],
   products: [{ name: "Rice 5kg", price: 320, mrp: 360, inStock: true }],
   orders: [{ id: "demo1", total: 594, items: [{ name: "Rice", qty: 1 }], status: "PENDING" }],
-  bookings: [{ service: "Wiring fix", status: "NEW" }],
+  bookings: [{ service: "Wiring", status: "NEW" }], appointments: [{ purpose: "Meeseva", status: "NEW" }],
+  serviceRequests: [{ title: "Fix tap", details: "Leaking", status: "NEW" }],
   reviews: [{ customerName: "Suresh", rating: 5, comment: "Great!" }],
-  users: [{ name: "Suresh K", email: "suresh@example.com", address: "Hyderabad" }],
+  users: [{ name: "Suresh K", email: "suresh@example.com", role: "CUSTOMER" }],
+  admins: [], categories: [{ name: "groceries", type: "store" }],
   growItems: [{ title: "Featured listing", targetRole: "all", ctaText: "Boost" }],
-  banners: [{ title: "Diwali Sale", order: 1, active: true }]
+  banners: [{ title: "Diwali Sale", order: 1, active: true, audience: "customer" }]
 };
-
-const DATA = {};
-let PENDING = [];
+const DATA = {}; let PENDING = []; let BSETTINGS = { cornerStyle: "rounded", border: false, heightStyle: "medium", template: "full" };
 
 async function fetchCol(name, fb) {
-  if (!LIVE) return fb.map((d, i) => ({ id: `demo-${name}-${i}`, ...d }));
-  try { const s = await db.collection(name).limit(300).get(); return s.docs.map(d => ({ id: d.id, ...d.data() })); }
+  if (!LIVE) return (fb || []).map((d, i) => ({ id: `demo-${name}-${i}`, ...d }));
+  try { const s = await db.collection(name).limit(500).get(); return s.docs.map(d => ({ id: d.id, ...d.data() })); }
   catch (e) { console.warn(name, e); return []; }
 }
+async function loadBannerSettings() { if (!LIVE) return; try { const d = await db.collection("settings").doc("banners").get(); if (d.exists) BSETTINGS = { ...BSETTINGS, ...d.data() }; } catch (e) {} }
 
 async function loadAll() {
-  const [stores, services, products, orders, bookings, reviews, users, grow, banners] = await Promise.all([
+  const [stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners] = await Promise.all([
     fetchCol("stores", DEMO.stores), fetchCol("services", DEMO.services), fetchCol("products", DEMO.products),
-    fetchCol("orders", DEMO.orders), fetchCol("bookings", DEMO.bookings), fetchCol("reviews", DEMO.reviews),
-    fetchCol("users", DEMO.users), fetchCol("growItems", DEMO.growItems), fetchCol("banners", DEMO.banners)
+    fetchCol("orders", DEMO.orders), fetchCol("bookings", DEMO.bookings), fetchCol("appointments", DEMO.appointments),
+    fetchCol("serviceRequests", DEMO.serviceRequests), fetchCol("reviews", DEMO.reviews), fetchCol("users", DEMO.users),
+    fetchCol("admins", DEMO.admins), fetchCol("categories", DEMO.categories), fetchCol("growItems", DEMO.growItems), fetchCol("banners", DEMO.banners)
   ]);
   await loadBannerSettings();
-  Object.assign(DATA, { stores, services, products, orders, bookings, reviews, users, grow, banners });
-  PENDING = [
-    ...stores.filter(x => !x.approved).map(x => ({ ...x, _col: "stores" })),
-    ...services.filter(x => !x.approved).map(x => ({ ...x, _col: "services" }))
-  ];
+  Object.assign(DATA, { stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners });
+  PENDING = [...stores.filter(x => !x.approved).map(x => ({ ...x, _col: "stores" })), ...services.filter(x => !x.approved).map(x => ({ ...x, _col: "services" }))];
   render();
 }
 
-/* ---------------- RENDER ---------------- */
-const tag = (ok) => ok ? '<span class="tag ok">Approved</span>' : '<span class="tag wait">Pending</span>';
-const num = (n) => (n || 0).toLocaleString("en-IN");
-const money = (n) => "₹" + num(Math.round(n || 0));
-const star = (r) => '<span class="stars">' + "★".repeat(Math.round(r || 0)).padEnd(5, "☆") + "</span>";
-const img = (url) => url ? `<img class="avatar" src="${url}">` : `<div class="avatar" style="display:inline-grid;place-items:center">·</div>`;
-const filt = (id) => (document.getElementById(id)?.value || "").toLowerCase();
-
+/* ---------- render ---------- */
+function statusSelect(col, id, cur, opts) {
+  return `<select onchange="changeStatus('${col}','${id}',this.value)">${opts.map(o => opt(o, o, cur)).join("")}</select>`;
+}
+const ORDER_ST = ["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"];
+const BOOK_ST = ["NEW", "CONFIRMED", "DONE", "CANCELLED"];
+const REQ_ST = ["NEW", "IN_PROGRESS", "DONE", "REJECTED"];
+function fmtTs(ts) { if (!ts) return "-"; const ms = ts.seconds ? ts.seconds * 1000 : (ts._seconds ? ts._seconds * 1000 : null); return ms ? new Date(ms).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "-"; }
+const ROLES = ["CUSTOMER", "STORE_OWNER", "SERVICE_PROVIDER", "STORE_AND_PROVIDER", "ADMIN"];
 let chartCat, chartOrders;
 
 function render() {
-  const { stores = [], services = [], products = [], orders = [], bookings = [], reviews = [], users = [], grow = [], banners = [] } = DATA;
-
-  // KPIs
-  const revenue = orders.filter(o => o.status === "COMPLETED").reduce((s, o) => s + (o.total || 0), 0);
-  document.getElementById("k-customers").textContent = LIVE ? num(users.length) : "50,00,000*";
-  document.getElementById("k-stores").textContent = num(stores.length);
-  document.getElementById("k-services").textContent = num(services.length);
+  const D = DATA;
+  const revenue = (D.orders || []).filter(o => o.status === "COMPLETED").reduce((s, o) => s + (o.total || 0), 0);
+  document.getElementById("k-customers").textContent = LIVE ? num((D.users || []).length) : "50,00,000*";
+  document.getElementById("k-stores").textContent = num((D.stores || []).length);
+  document.getElementById("k-services").textContent = num((D.services || []).length);
   document.getElementById("k-pending").textContent = num(PENDING.length);
-  document.getElementById("k-orders").textContent = num(orders.length);
+  document.getElementById("k-orders").textContent = num((D.orders || []).length);
   document.getElementById("k-revenue").textContent = money(revenue);
   document.getElementById("badge-pending").textContent = PENDING.length || "";
 
-  // Recent
-  const svcNames = new Set(services.map(s => s.name));
-  document.getElementById("recent").innerHTML = [...stores, ...services].slice(0, 7).map(s =>
-    `<tr><td>${s.name}</td><td>${svcNames.has(s.name) ? "Service" : "Store"}</td><td>${s.category || "-"}</td><td>${star(s.rating)}</td><td>${tag(s.approved)}</td></tr>`).join("") || emptyRow(5);
+  const svcNames = new Set((D.services || []).map(s => s.name));
+  document.getElementById("recent").innerHTML = [...(D.stores || []), ...(D.services || [])].slice(0, 7).map(s =>
+    `<tr><td>${s.name}</td><td>${svcNames.has(s.name) ? "Service" : "Store"}</td><td>${s.category || "-"}</td><td>${star(s.rating)}</td><td>${tag(s.approved)}</td></tr>`).join("") || empty(5);
 
-  // Approvals
   document.getElementById("approvalRows").innerHTML = PENDING.length ? PENDING.map((p, i) =>
     `<tr><td>${p.name}</td><td>${p._col === "services" ? "Service" : "Store"}</td><td>${p.category || "-"}</td><td>${p.address || "-"}</td>
-      <td class="row-actions"><button class="approve" onclick="approve(${i})">Approve</button>
-      <button class="reject" onclick="reject(${i})">Reject</button></td></tr>`).join("")
+     <td class="row-actions"><button class="approve" onclick="setApprovalById('${p._col}','${p.id}',true)">Approve</button>
+     <button class="reject" onclick="setApprovalById('${p._col}','${p.id}',false)">Reject</button></td></tr>`).join("")
     : `<tr><td colspan="5" class="empty">No pending approvals 🎉</td></tr>`;
 
-  // Stores
-  const qs = filt("q-stores");
-  document.getElementById("storeRows").innerHTML = stores.filter(s => (s.name || "").toLowerCase().includes(qs)).map(s =>
-    `<tr><td>${img(s.photoUrl)}</td><td>${s.name}</td><td>${s.category || "-"}</td><td>${star(s.rating)} ${(s.rating || 0).toFixed(1)}</td>
-      <td>${s.isOpen ? '<span class="tag ok">Open</span>' : '<span class="tag no">Closed</span>'}</td><td>${tag(s.approved)}</td>
-      <td>${s.approved ? `<button class="mini" onclick="setApprovalById('stores','${s.id}',false)">Unpublish</button>` : `<button class="approve" onclick="setApprovalById('stores','${s.id}',true)">Approve</button>`}</td></tr>`).join("") || emptyRow(7);
+  renderListing("stores", "storeRows", "q-stores", "isOpen", "Open", "Closed");
+  renderListing("services", "svcRows", "q-svc", "available", "Yes", "No");
 
-  // Services
-  const qv = filt("q-svc");
-  document.getElementById("svcRows").innerHTML = services.filter(s => (s.name || "").toLowerCase().includes(qv)).map(s =>
-    `<tr><td>${img(s.photoUrl)}</td><td>${s.name}</td><td>${s.category || "-"}</td><td>${star(s.rating)} ${(s.rating || 0).toFixed(1)}</td>
-      <td>${s.available ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td><td>${tag(s.approved)}</td>
-      <td>${s.approved ? `<button class="mini" onclick="setApprovalById('services','${s.id}',false)">Unpublish</button>` : `<button class="approve" onclick="setApprovalById('services','${s.id}',true)">Approve</button>`}</td></tr>`).join("") || emptyRow(7);
-
-  // Products
   const qp = filt("q-prod");
-  document.getElementById("prodRows").innerHTML = products.filter(p => (p.name || "").toLowerCase().includes(qp)).map(p =>
+  document.getElementById("prodRows").innerHTML = (D.products || []).filter(p => (p.name || "").toLowerCase().includes(qp)).map(p =>
     `<tr><td>${img(p.imageUrl)}</td><td>${p.name}</td><td>${money(p.price)}</td><td>${p.mrp ? money(p.mrp) : "-"}</td>
-      <td>${p.inStock ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td></tr>`).join("") || emptyRow(5);
+     <td>${p.inStock ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td>
+     <td class="row-actions"><button class="mini" onclick="toggleField('products','${p.id}','inStock',${!p.inStock})">${p.inStock ? "Mark out" : "In stock"}</button>
+     <button class="reject" onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("") || empty(6);
 
-  // Orders
-  document.getElementById("orderRows").innerHTML = orders.map(o =>
+  document.getElementById("catRows").innerHTML = (D.categories || []).map(c =>
+    `<tr><td>${c.name}</td><td><span class="tag info">${c.type || "store"}</span></td>
+     <td><button class="reject" onclick="del('categories','${c.id}')">Delete</button></td></tr>`).join("") || empty(3);
+
+  const qo = filt("q-ord");
+  document.getElementById("orderRows").innerHTML = (D.orders || []).filter(o => (o.id || "").toLowerCase().includes(qo) || (o.items || []).some(i => (i.name || "").toLowerCase().includes(qo))).map(o =>
     `<tr><td>${(o.id || "").slice(0, 6).toUpperCase()}</td><td>${(o.items || []).map(i => `${i.name}×${i.qty}`).join(", ") || "-"}</td>
-      <td>${money(o.total)}</td><td>${statusTag(o.status)}</td></tr>`).join("") || emptyRow(4);
+     <td>${money(o.total)}</td><td>${statusSelect("orders", o.id, o.status, ORDER_ST)}</td></tr>`).join("") || empty(4);
 
-  // Bookings
-  document.getElementById("bookingRows").innerHTML = bookings.map(b =>
-    `<tr><td>${b.service || "Service"}</td><td>${fmtTs(b.scheduledAt)}</td><td>${statusTag(b.status)}</td></tr>`).join("") || emptyRow(3);
+  document.getElementById("bookingRows").innerHTML = (D.bookings || []).map(b =>
+    `<tr><td>${b.service || "Service"}</td><td>${fmtTs(b.scheduledAt)}</td><td>${statusSelect("bookings", b.id, b.status, BOOK_ST)}</td></tr>`).join("") || empty(3);
 
-  // Reviews
-  document.getElementById("reviewRows").innerHTML = reviews.map(r =>
-    `<tr><td>${r.customerName || "Customer"}</td><td>${star(r.rating)}</td><td>${r.comment || "-"}</td></tr>`).join("") || emptyRow(3);
+  document.getElementById("apptRows").innerHTML = (D.appointments || []).map(a =>
+    `<tr><td>${a.purpose || "Appointment"}</td><td>${fmtTs(a.scheduledAt)}</td><td>${statusSelect("appointments", a.id, a.status, BOOK_ST)}</td></tr>`).join("") || empty(3);
 
-  // Customers
+  document.getElementById("reqRows").innerHTML = (D.serviceRequests || []).map(r =>
+    `<tr><td>${r.title || "Request"}</td><td>${r.details || "-"}</td><td>${statusSelect("serviceRequests", r.id, r.status, REQ_ST)}</td></tr>`).join("") || empty(3);
+
+  document.getElementById("reviewRows").innerHTML = (D.reviews || []).map(r =>
+    `<tr><td>${r.customerName || "Customer"}</td><td>${star(r.rating)}</td><td>${r.comment || "-"}</td>
+     <td><button class="reject" onclick="del('reviews','${r.id}')">Delete</button></td></tr>`).join("") || empty(4);
+
   const qc = filt("q-cust");
-  document.getElementById("custRows").innerHTML = users.filter(u => ((u.name || "") + (u.email || "")).toLowerCase().includes(qc)).map(u =>
-    `<tr><td>${img(u.photoUrl)}</td><td>${u.name || "-"}</td><td>${u.email || "-"}</td><td>${u.address || "-"}</td></tr>`).join("") || emptyRow(4);
+  document.getElementById("custRows").innerHTML = (D.users || []).filter(u => ((u.name || "") + (u.email || "")).toLowerCase().includes(qc)).map(u =>
+    `<tr><td>${img(u.photoUrl)}</td><td>${u.name || "-"}</td><td>${u.email || "-"}</td>
+     <td><select onchange="setRole('${u.id}',this.value)">${ROLES.map(r => opt(r, r, u.role || "CUSTOMER")).join("")}</select></td>
+     <td><button class="mini" onclick="makeAdmin('${u.id}')">Make admin</button></td></tr>`).join("") || empty(5);
 
-  // Grow
-  document.getElementById("growRows").innerHTML = grow.map(g =>
+  document.getElementById("adminRows").innerHTML = (D.admins || []).map(a =>
+    `<tr><td>${a.id}</td><td>${a.role || "admin"}</td><td><button class="reject" onclick="removeAdmin('${a.id}')">Remove</button></td></tr>`).join("") || empty(3);
+
+  document.getElementById("growRows").innerHTML = (D.grow || []).map(g =>
     `<tr><td>${g.title}</td><td>${g.targetRole}</td><td>${g.ctaText || "-"}</td>
-      <td class="row-actions"><button class="mini" onclick="editGrow('${g.id}')">Edit</button>
-      <button class="reject" onclick="del('growItems','${g.id}')">Delete</button></td></tr>`).join("") || emptyRow(4);
+     <td class="row-actions"><button class="mini" onclick="editGrow('${g.id}')">Edit</button><button class="reject" onclick="del('growItems','${g.id}')">Delete</button></td></tr>`).join("") || empty(4);
 
-  // Banners
-  document.getElementById("bannerRows").innerHTML = banners.map(b =>
-    `<tr><td>${img(b.imageUrl)} ${b.title}</td><td><span class="tag info">${b.audience || "customer"}</span></td><td>${b.order ?? "-"}</td><td>${b.active ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td>
-      <td class="row-actions"><button class="mini" onclick="editBanner('${b.id}')">Edit</button>
-      <button class="mini" onclick="toggleBanner('${b.id}',${!b.active})">${b.active ? "Disable" : "Enable"}</button>
-      <button class="reject" onclick="del('banners','${b.id}')">Delete</button></td></tr>`).join("") || emptyRow(5);
+  document.getElementById("bannerRows").innerHTML = (D.banners || []).map(b =>
+    `<tr><td>${img(b.imageUrl)} ${b.title}</td><td><span class="tag info">${b.audience || "customer"}</span></td><td>${b.order ?? "-"}</td>
+     <td>${b.active ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td>
+     <td class="row-actions"><button class="mini" onclick="editBanner('${b.id}')">Edit</button>
+     <button class="mini" onclick="toggleField('banners','${b.id}','active',${!b.active})">${b.active ? "Disable" : "Enable"}</button>
+     <button class="reject" onclick="del('banners','${b.id}')">Delete</button></td></tr>`).join("") || empty(5);
 
   drawCharts();
 }
 
-function emptyRow(cols) { return `<tr><td colspan="${cols}" class="empty">No data yet</td></tr>`; }
-function statusTag(s) {
-  s = (s || "").toUpperCase();
-  if (["COMPLETED", "DONE", "CONFIRMED"].includes(s)) return `<span class="tag ok">${s}</span>`;
-  if (["CANCELLED", "REJECTED"].includes(s)) return `<span class="tag no">${s}</span>`;
-  if (["ACTIVE", "IN_PROGRESS"].includes(s)) return `<span class="tag info">${s}</span>`;
-  return `<span class="tag wait">${s || "—"}</span>`;
+function renderListing(col, rowsId, qId, availField, onLbl, offLbl) {
+  const q = filt(qId);
+  document.getElementById(rowsId).innerHTML = (DATA[col] || []).filter(s => (s.name || "").toLowerCase().includes(q)).map(s =>
+    `<tr><td>${img(s.photoUrl)}</td><td>${s.name}${s.featured ? ' <span class="tag feat">★</span>' : ""}</td><td>${s.category || "-"}</td>
+     <td>${star(s.rating)} ${(s.rating || 0).toFixed ? Number(s.rating || 0).toFixed(1) : s.rating}</td>
+     <td>${s[availField] ? `<span class="tag ok">${onLbl}</span>` : `<span class="tag no">${offLbl}</span>`}</td>
+     <td>${tag(s.approved)}</td>
+     <td class="row-actions">
+       <button class="mini" onclick="editListing('${col}','${s.id}')">Edit</button>
+       ${s.approved ? `<button class="mini" onclick="toggleField('${col}','${s.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('${col}','${s.id}','approved',true)">Approve</button>`}
+       <button class="reject" onclick="del('${col}','${s.id}')">Delete</button>
+     </td></tr>`).join("") || empty(7);
 }
-function fmtTs(ts) {
-  if (!ts) return "-";
-  const ms = ts.seconds ? ts.seconds * 1000 : (ts._seconds ? ts._seconds * 1000 : null);
-  return ms ? new Date(ms).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "-";
-}
+function empty(c) { return `<tr><td colspan="${c}" class="empty">No data yet</td></tr>`; }
 
 function drawCharts() {
-  const { stores = [], services = [], orders = [] } = DATA;
-  const catCounts = {};
-  [...stores, ...services].forEach(s => { catCounts[s.category || "other"] = (catCounts[s.category || "other"] || 0) + 1; });
-  const css = getComputedStyle(document.body);
-  const palette = ["#2563EB", "#7C3AED", "#F59E0B", "#22c55e", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
-
+  const cc = {}; [...(DATA.stores || []), ...(DATA.services || [])].forEach(s => { cc[s.category || "other"] = (cc[s.category || "other"] || 0) + 1; });
+  const pal = ["#2563EB", "#7C3AED", "#F59E0B", "#22c55e", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
   if (chartCat) chartCat.destroy();
-  chartCat = new Chart(document.getElementById("chartCat"), {
-    type: "doughnut",
-    data: { labels: Object.keys(catCounts), datasets: [{ data: Object.values(catCounts), backgroundColor: palette }] },
-    options: { plugins: { legend: { labels: { color: "#93a4c0" }, position: "right" } } }
-  });
-
-  const statuses = ["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"];
-  const counts = statuses.map(st => orders.filter(o => (o.status || "").toUpperCase() === st).length);
+  chartCat = new Chart(document.getElementById("chartCat"), { type: "doughnut", data: { labels: Object.keys(cc), datasets: [{ data: Object.values(cc), backgroundColor: pal }] }, options: { plugins: { legend: { labels: { color: "#93a4c0" }, position: "right" } } } });
+  const st = ORDER_ST, counts = st.map(x => (DATA.orders || []).filter(o => (o.status || "").toUpperCase() === x).length);
   if (chartOrders) chartOrders.destroy();
-  chartOrders = new Chart(document.getElementById("chartOrders"), {
-    type: "bar",
-    data: { labels: statuses, datasets: [{ data: counts, backgroundColor: palette, borderRadius: 6 }] },
-    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: "#93a4c0" }, grid: { display: false } }, y: { ticks: { color: "#93a4c0" }, grid: { color: "#22324f" } } } }
-  });
+  chartOrders = new Chart(document.getElementById("chartOrders"), { type: "bar", data: { labels: st, datasets: [{ data: counts, backgroundColor: pal, borderRadius: 6 }] }, options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: "#93a4c0" }, grid: { display: false } }, y: { ticks: { color: "#93a4c0" }, grid: { color: "#22324f" } } } } });
 }
 
-/* ---------------- ACTIONS ---------------- */
-async function setApprovalById(col, id, approved) {
-  if (!LIVE) { toast(`(demo) ${approved ? "Approved" : "Unpublished"}`, "ok"); return; }
-  try { await db.collection(col).doc(id).update({ approved }); toast(approved ? "Seller approved" : "Seller unpublished", "ok"); await loadAll(); }
+/* ---------- generic actions ---------- */
+async function setApprovalById(col, id, approved) { return toggleField(col, id, "approved", approved); }
+async function toggleField(col, id, field, value) {
+  if (!LIVE) { toast("(demo) updated", "ok"); return; }
+  try { await db.collection(col).doc(id).update({ [field]: value }); toast("Updated", "ok"); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
-function approve(i) { const p = PENDING[i]; if (p) setApprovalById(p._col, p.id, true); }
-function reject(i) { const p = PENDING[i]; if (p) setApprovalById(p._col, p.id, false); }
-
+async function changeStatus(col, id, value) {
+  if (!LIVE) { toast("(demo) status set", "ok"); return; }
+  try { await db.collection(col).doc(id).update({ status: value }); toast("Status updated", "ok"); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
 async function del(col, id) {
   if (!confirm("Delete this item?")) return;
   if (!LIVE) { toast("(demo) deleted", "ok"); return; }
   try { await db.collection(col).doc(id).delete(); toast("Deleted", "ok"); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
-async function toggleBanner(id, active) {
-  if (!LIVE) { toast("(demo) toggled", "ok"); return; }
-  try { await db.collection("banners").doc(id).update({ active }); await loadAll(); }
+
+/* ---------- edit store / service ---------- */
+function editListing(col, id) {
+  const s = (DATA[col] || []).find(x => x.id === id); if (!s) return;
+  const isStore = col === "stores"; const availField = isStore ? "isOpen" : "available";
+  modal(`<h3>Edit ${isStore ? "store" : "provider"}</h3>
+    <label>Name</label><input id="e-name" value="${esc(s.name)}">
+    <label>Category</label><input id="e-cat" value="${esc(s.category)}">
+    <label>Address / area</label><input id="e-addr" value="${esc(s.address)}">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label>Approved</label><select id="e-appr">${opt("true", "Yes", String(!!s.approved))}${opt("false", "No", String(!!s.approved))}</select></div>
+      <div><label>${isStore ? "Open" : "Available"}</label><select id="e-avail">${opt("true", "Yes", String(!!s[availField]))}${opt("false", "No", String(!!s[availField]))}</select></div>
+      <div><label>Featured</label><select id="e-feat">${opt("false", "No", String(!!s.featured))}${opt("true", "Yes", String(!!s.featured))}</select></div>
+    </div>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveListing('${col}','${id}','${availField}')">Save</button></div>`);
+}
+async function saveListing(col, id, availField) {
+  const data = { name: val("e-name"), category: val("e-cat"), address: val("e-addr"),
+    approved: val("e-appr") === "true", [availField]: val("e-avail") === "true", featured: val("e-feat") === "true" };
+  if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
+  try { await db.collection(col).doc(id).update(data); toast("Saved", "ok"); closeModal(); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
 
-/* ---------------- MODALS (add grow / banner) ---------------- */
-function modal(html) { document.getElementById("modalBox").innerHTML = html; document.getElementById("modalBg").classList.add("open"); }
-function closeModal() { document.getElementById("modalBg").classList.remove("open"); }
-document.getElementById("modalBg").addEventListener("click", e => { if (e.target.id === "modalBg") closeModal(); });
+/* ---------- categories ---------- */
+function openCategory() {
+  modal(`<h3>Add category</h3>
+    <label>Name</label><input id="c-name" placeholder="e.g. groceries">
+    <label>Type</label><select id="c-type">${opt("store", "Store", "store")}${opt("service", "Service", "store")}</select>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveCategory()">Save</button></div>`);
+}
+async function saveCategory() {
+  const name = val("c-name"); if (!name) return toast("Name required", "bad");
+  if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
+  try { await db.collection("categories").add({ name, type: val("c-type"), iconUrl: "" }); toast("Category added", "ok"); closeModal(); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
 
+/* ---------- customers / admins ---------- */
+async function setRole(uid, role) {
+  if (!LIVE) { toast("(demo) role set", "ok"); return; }
+  try { await db.collection("users").doc(uid).update({ role }); toast("Role updated", "ok"); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+async function makeAdmin(uid) {
+  if (!confirm("Grant admin access to this user?")) return;
+  if (!LIVE) { toast("(demo) admin added", "ok"); return; }
+  try { await db.collection("admins").doc(uid).set({ role: "admin" }); toast("Admin granted", "ok"); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+function openAddAdmin() {
+  modal(`<h3>Add admin</h3><label>User UID</label><input id="a-uid" placeholder="paste UID from Authentication → Users">
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="addAdmin()">Add</button></div>`);
+}
+async function addAdmin() {
+  const uid = val("a-uid"); if (!uid) return toast("UID required", "bad");
+  if (!LIVE) { toast("(demo) added", "ok"); return closeModal(); }
+  try { await db.collection("admins").doc(uid).set({ role: "admin" }); toast("Admin added", "ok"); closeModal(); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+async function removeAdmin(uid) {
+  if (!confirm("Remove this admin?")) return;
+  if (!LIVE) { toast("(demo) removed", "ok"); return; }
+  try { await db.collection("admins").doc(uid).delete(); toast("Admin removed", "ok"); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+
+/* ---------- notifications ---------- */
+async function sendNotification() {
+  const title = val("n-title"), body = val("n-body"), aud = val("n-aud");
+  if (!title) return toast("Title required", "bad");
+  if (!LIVE) { toast("(demo) sent", "ok"); return; }
+  try {
+    let targets = [];
+    if (aud === "uid") { const u = val("n-uid"); if (!u) return toast("UID required", "bad"); targets = [u]; }
+    else {
+      const users = DATA.users || [];
+      const sellerRoles = ["STORE_OWNER", "SERVICE_PROVIDER", "STORE_AND_PROVIDER"];
+      targets = users.filter(u => aud === "all" || (aud === "customer" && (u.role || "CUSTOMER") === "CUSTOMER") || (aud === "seller" && sellerRoles.includes(u.role))).map(u => u.id);
+    }
+    if (!targets.length) return toast("No recipients", "bad");
+    let batch = db.batch(), n = 0;
+    for (const uid of targets) {
+      const ref = db.collection("notifications").doc();
+      batch.set(ref, { toUid: uid, title, body, read: false, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      if (++n % 400 === 0) { await batch.commit(); batch = db.batch(); }
+    }
+    await batch.commit();
+    toast(`Sent to ${targets.length} user(s)`, "ok");
+    document.getElementById("n-title").value = ""; document.getElementById("n-body").value = "";
+  } catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+
+/* ---------- image upload ---------- */
+async function uploadImage(fileInputId, folder) {
+  const f = document.getElementById(fileInputId)?.files?.[0];
+  if (!f || !LIVE) return "";
+  const ref = storage.ref().child(`${folder}/${Date.now()}_${f.name.replace(/\s+/g, "_")}`);
+  await ref.put(f); return await ref.getDownloadURL();
+}
+function previewFile(inputId, imgId) { const f = document.getElementById(inputId)?.files?.[0]; const im = document.getElementById(imgId); if (f && im) { im.src = URL.createObjectURL(f); im.style.display = "block"; } }
+
+/* ---------- grow items ---------- */
 let editGrowId = null;
-function editGrow(id) { openGrow(DATA.grow.find(x => x.id === id)); }
+function editGrow(id) { openGrow((DATA.grow || []).find(x => x.id === id)); }
 function openGrow(g) {
-  editGrowId = g?.id || null;
-  const role = g?.targetRole || "all";
+  editGrowId = g?.id || null; const role = g?.targetRole || "all";
   modal(`<h3>${g ? "Edit" : "Add"} grow item</h3>
-    <label>Title</label><input id="g-title" value="${g?.title || ""}" placeholder="e.g. Featured listing">
-    <label>Description</label><input id="g-desc" value="${g?.description || ""}" placeholder="Short description">
-    <label>CTA text</label><input id="g-cta" value="${g?.ctaText || ""}" placeholder="e.g. Boost">
-    <label>Target audience</label>
-    <select id="g-role">${opt("all", "All sellers", role)}${opt("store_owner", "Store owners", role)}${opt("service_provider", "Service providers", role)}</select>
-    <label>Image (optional)${g ? " — leave empty to keep current" : ""}</label>
-    <input id="g-file" type="file" accept="image/*" onchange="previewFile('g-file','g-prev')">
+    <label>Title</label><input id="g-title" value="${esc(g?.title)}">
+    <label>Description</label><input id="g-desc" value="${esc(g?.description)}">
+    <label>CTA text</label><input id="g-cta" value="${esc(g?.ctaText)}">
+    <label>Target audience</label><select id="g-role">${opt("all", "All sellers", role)}${opt("store_owner", "Store owners", role)}${opt("service_provider", "Service providers", role)}</select>
+    <label>Image (optional)</label><input id="g-file" type="file" accept="image/*" onchange="previewFile('g-file','g-prev')">
     <img id="g-prev" src="${g?.imageUrl || ""}" style="display:${g?.imageUrl ? "block" : "none"};width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="g-save" onclick="saveGrow()">Save</button></div>`);
 }
 async function saveGrow() {
-  const title = val("g-title");
-  if (!title) return toast("Title required", "bad");
+  const title = val("g-title"); if (!title) return toast("Title required", "bad");
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
   const btn = document.getElementById("g-save"); if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
   try {
     const imageUrl = await uploadImage("g-file", "growItems");
-    const data = {
-      title, description: val("g-desc"), ctaText: val("g-cta"),
-      targetRole: document.getElementById("g-role")?.value || "all"
-    };
+    const data = { title, description: val("g-desc"), ctaText: val("g-cta"), targetRole: val("g-role") };
     if (imageUrl) data.imageUrl = imageUrl;
-    if (editGrowId) {
-      await db.collection("growItems").doc(editGrowId).update(data);
-      toast("Grow item updated", "ok");
-    } else {
-      await db.collection("growItems").add({ ...data, imageUrl: imageUrl || "" });
-      toast("Grow item added", "ok");
-    }
-    closeModal(); await loadAll();
+    if (editGrowId) await db.collection("growItems").doc(editGrowId).update(data);
+    else await db.collection("growItems").add({ ...data, imageUrl: imageUrl || "" });
+    toast("Saved", "ok"); closeModal(); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
 }
 
-function opt(v, label, cur) { return `<option value="${v}" ${v === cur ? "selected" : ""}>${label}</option>`; }
-
+/* ---------- banners ---------- */
 let editBannerId = null;
-function editBanner(id) { openBanner(DATA.banners.find(x => x.id === id)); }
+function editBanner(id) { openBanner((DATA.banners || []).find(x => x.id === id)); }
 function openBanner(b) {
-  editBannerId = b?.id || null;
-  const aud = b?.audience || "customer";
+  editBannerId = b?.id || null; const aud = b?.audience || "customer";
   modal(`<h3>${b ? "Edit" : "Add"} banner</h3>
-    <label>Title</label><input id="b-title" value="${b?.title || ""}" placeholder="e.g. Diwali Sale">
-    <label>Show in app</label>
-    <select id="b-aud">${opt("customer", "Customer app", aud)}${opt("seller", "Seller app", aud)}${opt("both", "Both apps", aud)}</select>
+    <label>Title</label><input id="b-title" value="${esc(b?.title)}">
+    <label>Show in app</label><select id="b-aud">${opt("customer", "Customer app", aud)}${opt("seller", "Seller app", aud)}${opt("both", "Both apps", aud)}</select>
     <label>Banner image ${b ? "(leave empty to keep current)" : ""}</label>
     <input id="b-file" type="file" accept="image/*" onchange="previewFile('b-file','b-prev')">
     <img id="b-prev" src="${b?.imageUrl || ""}" style="display:${b?.imageUrl ? "block" : "none"};width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
     <label>Order</label><input id="b-order" type="number" value="${b?.order ?? 1}">
-    <label>Target (optional)</label><input id="b-target" value="${b?.target || ""}" placeholder="category or deep link">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div><label>Corner</label><select id="b-corner">${opt("default","Default", b?.cornerStyle||"default")}${opt("rounded","Rounded", b?.cornerStyle||"default")}${opt("square","Square", b?.cornerStyle||"default")}</select></div>
-      <div><label>Border</label><select id="b-border">${opt("default","Default", b?.borderStyle||"default")}${opt("on","On", b?.borderStyle||"default")}${opt("off","Off", b?.borderStyle||"default")}</select></div>
-      <div><label>Height</label><select id="b-height">${opt("default","Default", b?.heightStyle||"default")}${opt("short","Short", b?.heightStyle||"default")}${opt("medium","Medium", b?.heightStyle||"default")}${opt("tall","Tall", b?.heightStyle||"default")}</select></div>
-      <div><label>Template</label><select id="b-template">${opt("default","Default", b?.template||"default")}${opt("full","Full image", b?.template||"default")}${opt("overlay","Image + title", b?.template||"default")}${opt("framed","Framed", b?.template||"default")}</select></div>
+      <div><label>Corner</label><select id="b-corner">${opt("default", "Default", b?.cornerStyle || "default")}${opt("rounded", "Rounded", b?.cornerStyle || "default")}${opt("square", "Square", b?.cornerStyle || "default")}</select></div>
+      <div><label>Border</label><select id="b-border">${opt("default", "Default", b?.borderStyle || "default")}${opt("on", "On", b?.borderStyle || "default")}${opt("off", "Off", b?.borderStyle || "default")}</select></div>
+      <div><label>Height</label><select id="b-height">${opt("default", "Default", b?.heightStyle || "default")}${opt("short", "Short", b?.heightStyle || "default")}${opt("medium", "Medium", b?.heightStyle || "default")}${opt("tall", "Tall", b?.heightStyle || "default")}</select></div>
+      <div><label>Template</label><select id="b-template">${opt("default", "Default", b?.template || "default")}${opt("full", "Full image", b?.template || "default")}${opt("overlay", "Image + title", b?.template || "default")}${opt("framed", "Framed", b?.template || "default")}</select></div>
     </div>
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" id="b-save" onclick="saveBanner()">Save</button></div>`);
 }
 async function saveBanner() {
-  const title = val("b-title");
-  if (!title) return toast("Title required", "bad");
+  const title = val("b-title"); if (!title) return toast("Title required", "bad");
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
   const btn = document.getElementById("b-save"); if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
   try {
     const imageUrl = await uploadImage("b-file", "banners");
-    const data = {
-      title, target: val("b-target"),
-      audience: document.getElementById("b-aud")?.value || "customer",
-      order: parseInt(val("b-order") || "1", 10),
-      cornerStyle: document.getElementById("b-corner")?.value || "default",
-      borderStyle: document.getElementById("b-border")?.value || "default",
-      heightStyle: document.getElementById("b-height")?.value || "default",
-      template: document.getElementById("b-template")?.value || "default"
-    };
+    const data = { title, audience: val("b-aud"), order: parseInt(val("b-order") || "1", 10),
+      cornerStyle: val("b-corner"), borderStyle: val("b-border"), heightStyle: val("b-height"), template: val("b-template") };
     if (imageUrl) data.imageUrl = imageUrl;
-    if (editBannerId) {
-      await db.collection("banners").doc(editBannerId).update(data);
-      toast("Banner updated", "ok");
-    } else {
-      await db.collection("banners").add({ ...data, imageUrl: imageUrl || "", active: true });
-      toast("Banner added", "ok");
-    }
-    closeModal(); await loadAll();
+    if (editBannerId) await db.collection("banners").doc(editBannerId).update(data);
+    else await db.collection("banners").add({ ...data, imageUrl: imageUrl || "", active: true });
+    toast("Saved", "ok"); closeModal(); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); if (btn) { btn.disabled = false; btn.textContent = "Save"; } }
-}
-
-/* ---------------- GLOBAL BANNER DESIGN ---------------- */
-let BSETTINGS = { cornerStyle: "rounded", border: false, heightStyle: "medium", template: "full" };
-async function loadBannerSettings() {
-  if (!LIVE) return;
-  try { const d = await db.collection("settings").doc("banners").get(); if (d.exists) BSETTINGS = { ...BSETTINGS, ...d.data() }; } catch (e) { console.warn(e); }
 }
 function openBannerSettings() {
   const s = BSETTINGS;
-  modal(`<h3>Global banner design</h3>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:6px">Applies to every banner set to "Default".</p>
-    <label>Corner</label><select id="s-corner">${opt("rounded","Rounded", s.cornerStyle)}${opt("square","Square", s.cornerStyle)}</select>
-    <label>Border</label><select id="s-border">${opt("false","Off", String(s.border))}${opt("true","On", String(s.border))}</select>
-    <label>Height</label><select id="s-height">${opt("short","Short", s.heightStyle)}${opt("medium","Medium", s.heightStyle)}${opt("tall","Tall", s.heightStyle)}</select>
-    <label>Template</label><select id="s-template">${opt("full","Full image", s.template)}${opt("overlay","Image + title", s.template)}${opt("framed","Framed", s.template)}</select>
+  modal(`<h3>Global banner design</h3><p style="color:var(--muted);font-size:13px;margin-bottom:6px">Applies to banners set to "Default".</p>
+    <label>Corner</label><select id="s-corner">${opt("rounded", "Rounded", s.cornerStyle)}${opt("square", "Square", s.cornerStyle)}</select>
+    <label>Border</label><select id="s-border">${opt("false", "Off", String(s.border))}${opt("true", "On", String(s.border))}</select>
+    <label>Height</label><select id="s-height">${opt("short", "Short", s.heightStyle)}${opt("medium", "Medium", s.heightStyle)}${opt("tall", "Tall", s.heightStyle)}</select>
+    <label>Template</label><select id="s-template">${opt("full", "Full image", s.template)}${opt("overlay", "Image + title", s.template)}${opt("framed", "Framed", s.template)}</select>
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="add" onclick="saveBannerSettings()">Save</button></div>`);
 }
 async function saveBannerSettings() {
-  const data = {
-    cornerStyle: val("s-corner"), border: val("s-border") === "true",
-    heightStyle: val("s-height"), template: val("s-template")
-  };
+  const data = { cornerStyle: val("s-corner"), border: val("s-border") === "true", heightStyle: val("s-height"), template: val("s-template") };
   if (!LIVE) { toast("(demo) saved", "ok"); return closeModal(); }
   try { await db.collection("settings").doc("banners").set(data); BSETTINGS = data; toast("Banner design saved", "ok"); closeModal(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
-function val(id) { return (document.getElementById(id)?.value || "").trim(); }
 
-/* ---------------- SESSION ---------------- */
 if (LIVE) auth.onAuthStateChanged(async u => { if (u && await checkAdmin(u.uid)) showApp(u); });

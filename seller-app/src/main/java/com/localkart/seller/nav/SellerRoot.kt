@@ -27,8 +27,12 @@ import com.localkart.seller.ui.store.StoreOwnerApp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellerRoot(role: UserRole) {
-    val showStore = role == UserRole.STORE_OWNER || role == UserRole.STORE_AND_PROVIDER
-    val showProvider = role == UserRole.SERVICE_PROVIDER || role == UserRole.STORE_AND_PROVIDER
+    // If the account's role isn't a seller type (e.g. it was created as a customer),
+    // show BOTH tabs so the seller app is always usable.
+    val isSellerRole = role == UserRole.STORE_OWNER || role == UserRole.SERVICE_PROVIDER ||
+        role == UserRole.STORE_AND_PROVIDER
+    val showStore = role == UserRole.STORE_OWNER || role == UserRole.STORE_AND_PROVIDER || !isSellerRole
+    val showProvider = role == UserRole.SERVICE_PROVIDER || role == UserRole.STORE_AND_PROVIDER || !isSellerRole
 
     var current by remember { mutableStateOf(if (showStore) "store" else "provider") }
     var overlay by remember { mutableStateOf<String?>(null) } // "more" | "notifications" | null

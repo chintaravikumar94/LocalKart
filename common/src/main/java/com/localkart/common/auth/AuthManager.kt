@@ -42,7 +42,13 @@ object AuthManager {
         val ref = Firebase.firestore.collection("users").document(fbUser.uid)
         val existing = ref.get().await()
         val user = if (existing.exists()) {
-            existing.toObject(User::class.java)!!
+            val u = existing.toObject(User::class.java)!!
+            // Signing into the SELLER app with a seller role upgrades a plain customer
+            // account. Customer login (role = CUSTOMER) never downgrades a seller.
+            if (role != UserRole.CUSTOMER && u.role == UserRole.CUSTOMER) {
+                ref.update("role", role.name).await()
+                u.copy(role = role)
+            } else u
         } else {
             User(
                 uid = fbUser.uid,

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LocalKart — Local Stores & Services</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛍️</text></svg>" />
+<style>
+  :root{
+    --primary:#2563EB; --primary-2:#1e40af; --accent:#F59E0B;
+    --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --save:#0ea5a3;
+    --bg:#eef3fd; --panel:#ffffff; --card:#ffffff; --card-2:#f3f7ff;
+    --text:#0f1e3a; --muted:#5b6b86; --line:#dbe4f5;
+    --input-bg:#f4f8ff; --scroll:#bccae6; --hover:rgba(37,99,235,.05);
+    --shadow:rgba(37,99,235,.16); --elev:0 6px 20px rgba(37,99,235,.10);
+  }
+  body.dark{
+    --bg:#0b1220; --panel:#0f1a30; --card:#13203c; --card-2:#16264a;
+    --text:#e7edf6; --muted:#93a4c0; --line:#22324f;
+    --input-bg:#0b1322; --scroll:#243049; --hover:rgba(255,255,255,.03);
+    --shadow:rgba(0,0,0,.5); --elev:0 6px 20px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
+  body{background:var(--bg);color:var(--text);transition:background-color .2s,color .2s}
+  button{cursor:pointer;border:none;border-radius:12px;font-weight:600;font-family:inherit}
+  a{color:inherit;text-decoration:none}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:8px}
+  input,select,textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--input-bg);color:var(--text);font-size:14px;outline:none;font-family:inherit}
+  input:focus,select:focus,textarea:focus{border-color:var(--primary)}
+  .muted{color:var(--muted)}.center{text-align:center}
+
+  /* login */
+  #login{display:flex;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(1000px 500px at 15% -10%,#cdddff,var(--bg))}
+  .login-card{background:var(--card);padding:40px;border-radius:22px;width:390px;max-width:94vw;box-shadow:0 30px 80px var(--shadow);border:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--primary-2))}
+  .login-card h1{font-size:21px}.sub{color:var(--muted);font-size:13px;margin:6px 0 24px}
+  .btn-primary{width:100%;padding:13px;background:var(--primary);color:#fff;margin-top:12px}
+  .btn-google{width:100%;padding:13px;background:#fff;color:#1f2937;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--line)}
+  .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:14px 0}
+  .or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
+  .err{color:#e11d48;font-size:13px;min-height:18px;margin-top:10px}
+  .link{color:var(--primary);cursor:pointer;font-size:13px}
+
+  /* app shell */
+  #app{display:none;min-height:100vh;flex-direction:column}
+  header.bar{position:sticky;top:0;z-index:30;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--elev)}
+  .bar-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 20px}
+  .loc{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--muted);white-space:nowrap;max-width:190px;overflow:hidden}
+  .loc b{color:var(--text)}
+  .search{flex:1;position:relative;min-width:120px}
+  .search input{padding-left:38px}
+  .search .ic{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.6}
+  .iconbtn{position:relative;background:var(--card-2);border:1px solid var(--line);width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:18px}
+  .iconbtn .badge{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:10px;display:grid;place-items:center;padding:0 4px}
+  .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-2));display:grid;place-items:center;font-weight:700;color:#fff;cursor:pointer}
+  nav.tabs{max-width:1180px;margin:0 auto;display:flex;gap:6px;padding:6px 16px;overflow-x:auto}
+  nav.tabs a{display:flex;align-items:center;gap:7px;padding:9px 15px;border-radius:11px;color:var(--muted);font-size:14px;font-weight:600;white-space:nowrap}
+  nav.tabs a:hover{background:var(--card)}
+  nav.tabs a.active{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff}
+  main{max-width:1180px;margin:0 auto;width:100%;padding:18px 20px 60px}
+
+  .view{display:none}.view.active{display:block;animation:f .2s}
+  @keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h2.sec{font-size:18px;margin:18px 0 12px;display:flex;align-items:center;justify-content:space-between}
+  .crumb{color:var(--muted);font-size:13px;font-weight:500}
+
+  /* banner carousel */
+  .carousel{position:relative;border-radius:18px;overflow:hidden;margin-bottom:8px}
+  .track{display:flex;transition:transform .4s ease}
+  .slide{min-width:100%;height:190px;position:relative}
+  .slide img{width:100%;height:100%;object-fit:cover}
+  .slide .cap{position:absolute;left:0;right:0;bottom:0;padding:18px;background:linear-gradient(transparent,rgba(0,0,0,.65));color:#fff;font-size:18px;font-weight:700}
+  .dots{display:flex;gap:6px;justify-content:center;margin:8px 0 4px}
+  .dots span{width:7px;height:7px;border-radius:50%;background:var(--line)}
+  .dots span.on{background:var(--primary);width:18px;border-radius:6px}
+
+  /* chips */
+  .chips{display:flex;gap:9px;overflow-x:auto;padding:4px 0 10px}
+  .chip{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
+  .chip .ci{width:62px;height:62px;border-radius:18px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;font-size:26px;overflow:hidden;box-shadow:var(--elev)}
+  .chip .ci img{width:100%;height:100%;object-fit:cover}
+  .chip.on .ci{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary)}
+  .chip small{font-size:11px;color:var(--muted);max-width:70px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* cards grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--elev);cursor:pointer;transition:.15s}
+  .card:hover{transform:translateY(-2px);border-color:var(--primary)}
+  .card .ph{height:120px;background:var(--card-2);position:relative;overflow:hidden}
+  .card .ph img{width:100%;height:100%;object-fit:cover}
+  .card .bd{padding:11px 13px}
+  .card .nm{font-weight:700;font-size:15px;margin-bottom:2px}
+  .pill{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:3px 9px;border-radius:20px}
+  .pill.open{background:var(--green)}.pill.closed{background:var(--red)}
+  .rate{color:var(--amber);font-size:13px;font-weight:600}
+  .tag{font-size:11px;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .tag.ok{background:rgba(34,197,94,.16);color:#16a34a}.tag.wait{background:rgba(245,158,11,.16);color:#b45309}
+  .tag.no{background:rgba(239,68,68,.16);color:#dc2626}.tag.info{background:rgba(37,99,235,.16);color:#1d4ed8}
+  body.dark .tag.ok{color:#86efac}body.dark .tag.wait{color:#fcd34d}body.dark .tag.no{color:#fca5a5}body.dark .tag.info{color:#93c5fd}
+
+  /* product tile */
+  .ptile{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--elev);display:flex;flex-direction:column}
+  .ptile .ph{height:104px;background:var(--card-2)}.ptile .ph img{width:100%;height:100%;object-fit:cover}
+  .ptile .bd{padding:9px 11px;display:flex;flex-direction:column;gap:2px;flex:1}
+  .ptile .nm{font-weight:600;font-size:13px;line-height:1.25}
+  .price{font-weight:800;color:var(--primary)}
+  .mrp{text-decoration:line-through;color:var(--muted);font-size:12px;margin-left:6px}
+  .save{color:var(--save);font-size:11px;font-weight:700}
+  .addbtn{margin-top:6px;background:var(--primary);color:#fff;padding:8px;border-radius:10px;font-size:13px}
+  .addbtn:disabled{background:var(--line);color:var(--muted);cursor:not-allowed}
+  .qtybox{display:flex;align-items:center;gap:10px;margin-top:6px}
+  .qtybox button{width:28px;height:28px;border-radius:8px;background:var(--card-2);border:1px solid var(--line);font-size:16px;color:var(--text)}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--elev);padding:16px;margin-bottom:14px}
+  .row{display:flex;align-items:center;gap:12px}
+  .between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .ghost{background:var(--card-2);color:var(--text);padding:10px 15px;border:1px solid var(--line);display:inline-flex;gap:7px;align-items:center}
+  .ghost:hover{border-color:var(--primary)}
+  .btn{background:var(--primary);color:#fff;padding:11px 16px}
+  .btn.block{width:100%;display:block;text-align:center}
+  .btn.alt{background:var(--card-2);color:var(--text);border:1px solid var(--line)}
+  .empty{color:var(--muted);text-align:center;padding:44px 10px}
+  .listrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .listrow:last-child{border-bottom:none}
+  .thumb{width:54px;height:54px;border-radius:12px;object-fit:cover;background:var(--card-2);flex:none}
+  .skel{background:linear-gradient(90deg,var(--card-2),var(--line),var(--card-2));background-size:200% 100%;animation:sh 1.2s infinite;border-radius:12px}
+  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  /* chat */
+  .chatwrap{display:grid;grid-template-columns:280px 1fr;gap:14px;height:70vh}
+  @media(max-width:760px){.chatwrap{grid-template-columns:1fr}.chatwrap .threads.hidem{display:none}}
+  .threads{overflow:auto}
+  .thread{padding:11px;border-radius:12px;cursor:pointer;border:1px solid transparent}
+  .thread:hover{background:var(--card-2)}.thread.on{background:var(--card-2);border-color:var(--primary)}
+  .msgs{display:flex;flex-direction:column;height:100%}
+  .msglist{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:6px}
+  .bub{max-width:70%;padding:9px 13px;border-radius:14px;font-size:14px}
+  .bub.me{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:4px}
+  .bub.them{align-self:flex-start;background:var(--card-2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .composer{display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--line)}
+
+  /* modal + toast */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:50}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:18px;width:480px;max-width:94vw;max-height:92vh;overflow:auto;padding:22px}
+  .modal h3{margin-bottom:6px}.modal label{font-size:12px;color:var(--muted);display:block;margin-top:10px;margin-bottom:3px}
+  .modal .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+  #toast{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:60}
+  .toast{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--primary);padding:12px 16px;border-radius:12px;font-size:14px;box-shadow:0 12px 30px var(--shadow);animation:f .2s}
+  .toast.ok{border-left-color:var(--green)}.toast.bad{border-left-color:var(--red)}
+  .stars{color:var(--amber);letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-card">
+    <div class="brand"><div class="logo">LK</div><h1>LocalKart</h1></div>
+    <p class="sub">Local stores & services, delivered near you.</p>
+    <button class="btn-google" onclick="loginGoogle()"><span style="color:#4285F4;font-weight:800;font-size:16px">G</span> Continue with Google</button>
+    <div class="or">or with email</div>
+    <input id="email" type="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <div id="signupName" style="display:none"><input id="name" placeholder="Your name" /></div>
+    <button class="btn-primary" onclick="loginEmail()" id="loginBtn">Sign in</button>
+    <div class="err" id="loginErr"></div>
+    <div class="center" style="margin-top:8px"><span class="link" id="toggleMode" onclick="toggleMode()">New here? Create an account</span></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="bar">
+    <div class="bar-in">
+      <div class="logo" style="width:38px;height:38px;font-size:14px">LK</div>
+      <div class="loc" onclick="openLocation()"><span>📍</span><div><div style="font-size:10px">DELIVER TO</div><b id="locLabel">Set location</b></div></div>
+      <div class="search"><span class="ic">🔎</span><input id="globalSearch" placeholder="Search stores, services, products…" oninput="onSearch()"></div>
+      <div class="iconbtn" onclick="go('notifications')">🔔<span class="badge" id="notifBadge" style="display:none">0</span></div>
+      <div class="iconbtn" onclick="go('cart')">🛒<span class="badge" id="cartBadge" style="display:none">0</span></div>
+      <div class="av" id="meAv" onclick="go('account')">U</div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <a data-view="home" class="active">🏠 Home</a>
+      <a data-view="stores">🏪 Stores</a>
+      <a data-view="services">🔧 Services</a>
+      <a data-view="orders">🧾 Orders</a>
+      <a data-view="bookings">📅 Bookings</a>
+      <a data-view="chat">💬 Chat</a>
+      <a data-view="account">👤 Account</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="view active" id="view-home"></section>
+    <section class="view" id="view-stores"></section>
+    <section class="view" id="view-services"></section>
+    <section class="view" id="view-detail"></section>
+    <section class="view" id="view-cart"></section>
+    <section class="view" id="view-orders"></section>
+    <section class="view" id="view-bookings"></section>
+    <section class="view" id="view-chat"></section>
+    <section class="view" id="view-notifications"></section>
+    <section class="view" id="view-account"></section>
+    <section class="view" id="view-search"></section>
+  </main>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

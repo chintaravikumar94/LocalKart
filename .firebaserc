@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "localkart-7dfb4"
+  },
+  "targets": {
+    "localkart-7dfb4": {
+      "hosting": {
+        "admin": ["localkart-7dfb4"],
+        "customer": ["localkart-customer"]
+      }
+    }
   }
 }

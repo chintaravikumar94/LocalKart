@@ -1,12 +1,16 @@
 {
-  "hosting": {
-    "public": "admin-web",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ]
-  },
+  "hosting": [
+    {
+      "target": "admin",
+      "public": "admin-web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+    },
+    {
+      "target": "customer",
+      "public": "customer-web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+    }
+  ],
   "functions": {
     "source": "functions"
   }

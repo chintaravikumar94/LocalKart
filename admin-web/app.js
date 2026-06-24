@@ -121,6 +121,7 @@ const CRUMBS = {
   services: "Manage service providers", products: "Catalog items", categories: "Store & service categories",
   orders: "Customer orders", bookings: "Service bookings", appointments: "Store appointments",
   requests: "Service / job requests", reviews: "Customer feedback", customers: "Registered users",
+  owners: "Shop owners — contact & billing", providers: "Service providers — contact & billing",
   admins: "Console administrators", notifications: "Broadcast to apps", grow: "Seller promos", banners: "Home banners",
   catalog: "Company master catalog", plans: "Activation & subscription pricing", billing: "Who paid — activation & subscription"
 };
@@ -612,7 +613,7 @@ async function toggleField(col, id, field, value) {
 }
 async function changeStatus(col, id, value) {
   if (!LIVE) { toast("(demo) status set", "ok"); return; }
-  try { await db.collection(col).doc(id).update({ status: value }); toast("Status updated", "ok"); }
+  try { await db.collection(col).doc(id).update({ status: value }); toast("Status updated", "ok"); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
 async function del(col, id) {
@@ -628,7 +629,7 @@ function editListing(col, id) {
   const isStore = col === "stores"; const availField = isStore ? "isOpen" : "available";
   modal(`<h3>Edit ${isStore ? "store" : "provider"}</h3>
     <label>Name</label><input id="e-name" value="${esc(s.name)}">
-    <label>Category</label><input id="e-cat" value="${esc(s.category)}">
+    <label>Category</label><select id="e-cat">${categoryOptions(s.category, isStore ? "store" : "service")}</select>
     <label>Address / area</label><input id="e-addr" value="${esc(s.address)}">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div><label>Approved</label><select id="e-appr">${opt("true", "Yes", String(!!s.approved))}${opt("false", "No", String(!!s.approved))}</select></div>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LocalKart Seller — Manage your business</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏪</text></svg>" />
+<style>
+  :root{
+    --primary:#7C3AED; --primary-2:#5b21b6; --accent:#F59E0B;
+    --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --save:#0ea5a3;
+    --bg:#f1ecfd; --panel:#ffffff; --card:#ffffff; --card-2:#f6f1ff;
+    --text:#1e1240; --muted:#6b6488; --line:#e4dcf6;
+    --input-bg:#f7f3ff; --scroll:#cbbdee; --hover:rgba(124,58,237,.05);
+    --shadow:rgba(124,58,237,.16); --elev:0 6px 20px rgba(124,58,237,.10);
+  }
+  body.dark{
+    --bg:#120b22; --panel:#180f2e; --card:#1d1338; --card-2:#241846;
+    --text:#ece7f6; --muted:#a99fc4; --line:#33265a;
+    --input-bg:#140c28; --scroll:#3a2c66; --hover:rgba(255,255,255,.03);
+    --shadow:rgba(0,0,0,.5); --elev:0 6px 20px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
+  body{background:var(--bg);color:var(--text);transition:background-color .2s,color .2s}
+  button{cursor:pointer;border:none;border-radius:12px;font-weight:600;font-family:inherit}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:8px}
+  input,select,textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--input-bg);color:var(--text);font-size:14px;outline:none;font-family:inherit}
+  input:focus,select:focus,textarea:focus{border-color:var(--primary)}
+  .muted{color:var(--muted)}.center{text-align:center}
+
+  #login{display:flex;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(1000px 500px at 15% -10%,#d9c9ff,var(--bg))}
+  .login-card{background:var(--card);padding:40px;border-radius:22px;width:390px;max-width:94vw;box-shadow:0 30px 80px var(--shadow);border:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--primary-2))}
+  .login-card h1{font-size:21px}.sub{color:var(--muted);font-size:13px;margin:6px 0 24px}
+  .btn-primary{width:100%;padding:13px;background:var(--primary);color:#fff;margin-top:12px}
+  .btn-google{width:100%;padding:13px;background:#fff;color:#1f2937;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--line)}
+  .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:14px 0}
+  .or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
+  .err{color:#e11d48;font-size:13px;min-height:18px;margin-top:10px}
+  .link{color:var(--primary);cursor:pointer;font-size:13px}
+
+  #app{display:none;min-height:100vh;flex-direction:column}
+  header.bar{position:sticky;top:0;z-index:30;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--elev)}
+  .bar-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 20px}
+  .bar-in h1{font-size:17px}.bar-in .crumb{color:var(--muted);font-size:12px}
+  .iconbtn{position:relative;background:var(--card-2);border:1px solid var(--line);width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:18px;cursor:pointer}
+  .iconbtn .badge{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:10px;display:grid;place-items:center;padding:0 4px}
+  .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-2));display:grid;place-items:center;font-weight:700;color:#fff;cursor:pointer}
+  nav.tabs{max-width:1180px;margin:0 auto;display:flex;gap:6px;padding:6px 16px;overflow-x:auto}
+  nav.tabs a{display:flex;align-items:center;gap:7px;padding:9px 15px;border-radius:11px;color:var(--muted);font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer}
+  nav.tabs a:hover{background:var(--card)}
+  nav.tabs a.active{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff}
+  main{max-width:1180px;margin:0 auto;width:100%;padding:18px 20px 60px}
+
+  .view{display:none}.view.active{display:block;animation:f .2s}
+  @keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h2.sec{font-size:18px;margin:16px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .crumb{color:var(--muted);font-size:13px;font-weight:500}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px}
+  .kpi{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--line);border-radius:16px;padding:16px;position:relative;overflow:hidden;box-shadow:var(--elev)}
+  .kpi .ic{position:absolute;right:12px;top:12px;font-size:20px;opacity:.5}.kpi .n{font-size:24px;font-weight:800}.kpi .l{color:var(--muted);font-size:13px;margin-top:2px}.kpi .bar{height:4px;border-radius:4px;margin-top:10px;background:linear-gradient(90deg,var(--primary),var(--primary-2))}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--elev)}
+  .card .ph{height:120px;background:var(--card-2);position:relative;overflow:hidden}.card .ph img{width:100%;height:100%;object-fit:cover}
+  .card .bd{padding:12px 14px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--elev);padding:16px;margin-bottom:14px}
+  .row{display:flex;align-items:center;gap:12px}.between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .ghost{background:var(--card-2);color:var(--text);padding:9px 14px;border:1px solid var(--line);display:inline-flex;gap:7px;align-items:center}
+  .ghost:hover{border-color:var(--primary)}
+  .btn{background:var(--primary);color:#fff;padding:11px 16px}.btn.block{width:100%;display:block;text-align:center}
+  .btn.alt{background:var(--card-2);color:var(--text);border:1px solid var(--line)}
+  .mini{background:var(--card-2);color:var(--text);border:1px solid var(--line);padding:6px 11px;font-size:12px}.mini:hover{border-color:var(--primary)}
+  .approve{background:var(--green);color:#06240f;padding:6px 11px;font-size:12px}
+  .reject{background:transparent;color:#e11d48;border:1px solid #fca5a5;padding:6px 11px;font-size:12px}
+  .empty{color:var(--muted);text-align:center;padding:42px 10px}
+  .listrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.listrow:last-child{border-bottom:none}
+  .thumb{width:54px;height:54px;border-radius:12px;object-fit:cover;background:var(--card-2);flex:none}
+  .tag{font-size:11px;padding:3px 10px;border-radius:20px;white-space:nowrap}
+  .tag.ok{background:rgba(34,197,94,.16);color:#16a34a}.tag.wait{background:rgba(245,158,11,.16);color:#b45309}
+  .tag.no{background:rgba(239,68,68,.16);color:#dc2626}.tag.info{background:rgba(124,58,237,.16);color:#6d28d9}
+  body.dark .tag.ok{color:#86efac}body.dark .tag.wait{color:#fcd34d}body.dark .tag.no{color:#fca5a5}body.dark .tag.info{color:#c9b0ff}
+  td select,.statussel{margin:0;padding:7px 9px;font-size:13px;width:auto;min-width:130px}
+  .price{font-weight:800;color:var(--primary)}.mrp{text-decoration:line-through;color:var(--muted);font-size:12px;margin-left:6px}.save{color:var(--save);font-size:11px;font-weight:700}
+  .banner{border-radius:14px;padding:14px 16px;margin-bottom:14px;font-size:14px;display:flex;gap:10px;align-items:center}
+  .banner.warn{background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.4);color:#b45309}
+  .banner.bad{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#dc2626}
+  .banner.ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:#16a34a}
+  body.dark .banner.warn{color:#fcd34d}body.dark .banner.bad{color:#fca5a5}body.dark .banner.ok{color:#86efac}
+
+  .chatwrap{display:grid;grid-template-columns:280px 1fr;gap:14px;height:70vh}
+  @media(max-width:760px){.chatwrap{grid-template-columns:1fr}}
+  .threads{overflow:auto}.thread{padding:11px;border-radius:12px;cursor:pointer;border:1px solid transparent}
+  .thread:hover{background:var(--card-2)}.thread.on{background:var(--card-2);border-color:var(--primary)}
+  .msgs{display:flex;flex-direction:column;height:100%}
+  .msglist{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:6px}
+  .bub{max-width:70%;padding:9px 13px;border-radius:14px;font-size:14px}
+  .bub.me{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:4px}
+  .bub.them{align-self:flex-start;background:var(--card-2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .composer{display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--line)}
+
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:50}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:18px;width:480px;max-width:94vw;max-height:92vh;overflow:auto;padding:22px}
+  .modal h3{margin-bottom:6px}.modal label{font-size:12px;color:var(--muted);display:block;margin-top:10px;margin-bottom:3px}
+  .modal .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+  #toast{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:60}
+  .toast{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--primary);padding:12px 16px;border-radius:12px;font-size:14px;box-shadow:0 12px 30px var(--shadow);animation:f .2s}
+  .toast.ok{border-left-color:var(--green)}.toast.bad{border-left-color:var(--red)}
+  .stars{color:var(--amber);letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <div class="brand"><div class="logo">LK</div><h1>LocalKart Seller</h1></div>
+    <p class="sub">Manage your shop & services in one place.</p>
+    <button class="btn-google" onclick="loginGoogle()"><span style="color:#4285F4;font-weight:800;font-size:16px">G</span> Continue with Google</button>
+    <div class="or">or with email</div>
+    <input id="email" type="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <div id="signupName" style="display:none"><input id="name" placeholder="Your / business name" /></div>
+    <button class="btn-primary" onclick="loginEmail()" id="loginBtn">Sign in</button>
+    <div class="err" id="loginErr"></div>
+    <div class="center" style="margin-top:8px"><span class="link" id="toggleMode" onclick="toggleMode()">New seller? Create an account</span></div>
+  </div>
+</div>
+
+<div id="app">
+  <header class="bar">
+    <div class="bar-in">
+      <div class="logo" style="width:38px;height:38px;font-size:14px">LK</div>
+      <div style="flex:1"><h1>LocalKart Seller</h1><div class="crumb" id="bizName">Your business</div></div>
+      <div class="iconbtn" onclick="go('notifications')">🔔<span class="badge" id="notifBadge" style="display:none">0</span></div>
+      <div class="av" id="meAv" onclick="go('account')">S</div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <a data-view="dashboard" class="active">📊 Dashboard</a>
+      <a data-view="shop">🏪 My Shop</a>
+      <a data-view="services">🔧 My Services</a>
+      <a data-view="orders">🧾 Orders</a>
+      <a data-view="bookings">📅 Bookings</a>
+      <a data-view="chat">💬 Chat</a>
+      <a data-view="billing">💰 Billing</a>
+      <a data-view="account">👤 Account</a>
+    </nav>
+  </header>
+  <main>
+    <section class="view active" id="view-dashboard"></section>
+    <section class="view" id="view-shop"></section>
+    <section class="view" id="view-services"></section>
+    <section class="view" id="view-products"></section>
+    <section class="view" id="view-orders"></section>
+    <section class="view" id="view-bookings"></section>
+    <section class="view" id="view-chat"></section>
+    <section class="view" id="view-billing"></section>
+    <section class="view" id="view-notifications"></section>
+    <section class="view" id="view-account"></section>
+  </main>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

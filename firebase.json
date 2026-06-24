@@ -9,6 +9,11 @@
       "target": "customer",
       "public": "customer-web",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+    },
+    {
+      "target": "seller",
+      "public": "seller-web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
     }
   ],
   "functions": {

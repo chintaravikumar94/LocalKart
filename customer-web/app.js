@@ -196,22 +196,21 @@ async function openDetail(kind,id){
 }
 function renderDetail(s,kind,extras){
   const isStore=kind==="store";
-  const head=`<div class="panel"><div class="row">
-      <div class="thumb" style="width:84px;height:84px">${img(s.photoUrl)}</div>
-      <div style="flex:1">
+  const head=`<div class="panel" style="padding:0;overflow:hidden">
+      <div class="hero">${s.photoUrl?`<img src="${esc(s.photoUrl)}" alt="">`:`<div class="hero-ph">🏬</div>`}</div>
+      <div style="padding:16px">
         <div class="between"><h2 style="font-size:20px">${esc(s.name)}</h2>
           <span class="rate">★ ${(s.rating||0).toFixed(1)} <span class="crumb">(${s.ratingCount||0})</span></span></div>
-        <div class="crumb">${catLabel(s.category)} · ${isStore?(s.isOpen?'<span class="tag ok">Open now</span>':'<span class="tag no">Closed</span>'):(s.available?'<span class="tag ok">Available</span>':'<span class="tag no">Busy</span>')}</div>
+        <div class="crumb" style="margin-top:4px">${catLabel(s.category)} · ${isStore?(s.isOpen?'<span class="tag ok">Open now</span>':'<span class="tag no">Closed</span>'):(s.available?'<span class="tag ok">Available</span>':'<span class="tag no">Busy</span>')}</div>
         <div class="crumb" style="margin-top:4px">${esc(s.address||"")}${distLabel(s)}</div>
         ${s.description?`<div style="margin-top:6px;font-size:14px">${esc(s.description)}</div>`:""}
-      </div></div>
       <div class="row" style="margin-top:12px;flex-wrap:wrap">
         <button class="ghost" onclick="startChat()">💬 Chat</button>
         <button class="ghost" onclick="openReviews()">⭐ Reviews</button>
         ${isStore?`<button class="ghost" onclick="openAppointment()">🗓️ Book appointment</button>`
                  :`<button class="ghost" onclick="openBooking()">📅 Book service</button><button class="ghost" onclick="openRequest()">🛠️ Request job</button>`}
         <button class="btn alt" onclick="go('${isStore?"stores":"services"}')">← Back</button>
-      </div></div>`;
+      </div></div></div>`;
   let body="";
   if(isStore){
     body=`<h2 class="sec">Products <span class="crumb">${extras.length} items</span></h2>

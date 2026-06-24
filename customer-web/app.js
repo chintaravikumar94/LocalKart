@@ -84,6 +84,7 @@ function go(view){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("view-"+view).classList.add("active");
   if(chatUnsub && view!=="chat"){ chatUnsub(); chatUnsub=null; }
+  if(view!=="home") stopCarousel();   // stop banner auto-rotate when leaving Home
   window.scrollTo(0,0);
   ({home:renderHome,stores:renderStores,services:renderServices,cart:renderCart,orders:renderOrders,bookings:renderBookings,chat:renderChat,notifications:renderNotifications,account:renderAccount}[view]||(()=>{}))();
 }
@@ -147,11 +148,17 @@ function bannerHtml(){
     <div class="slide">${img(b.imageUrl)}${b.title?`<div class="cap">${esc(b.title)}</div>`:""}</div>`).join("")}</div></div>
     <div class="dots" id="bDots">${DATA.banners.map((_,i)=>`<span class="${i===0?"on":""}"></span>`).join("")}</div>`;
 }
+function stopCarousel(){ if(carTimer){ clearInterval(carTimer); carTimer=null; } }
 function startCarousel(){
-  if(carTimer) clearInterval(carTimer); carIdx=0;
+  stopCarousel(); carIdx=0;
   if(DATA.banners.length<=1) return;
-  carTimer=setInterval(()=>{ carIdx=(carIdx+1)%DATA.banners.length; const t=$("bTrack"); if(!t){clearInterval(carTimer);return;}
-    t.style.transform=`translateX(-${carIdx*100}%)`; const dots=$("bDots").children; for(let i=0;i<dots.length;i++) dots[i].className=i===carIdx?"on":""; },3500);
+  carTimer=setInterval(()=>{
+    const t=$("bTrack"); const dots=$("bDots");
+    if(!t || !dots || !$("view-home").classList.contains("active")){ stopCarousel(); return; }  // only run on Home
+    carIdx=(carIdx+1)%DATA.banners.length;
+    t.style.transform=`translateX(-${carIdx*100}%)`;
+    for(let i=0;i<dots.children.length;i++) dots.children[i].className=i===carIdx?"on":"";
+  },3500);
 }
 
 /* ---------- stores / services lists ---------- */
@@ -177,14 +184,15 @@ function renderServices(){ listView("services"); }
 async function openDetail(kind,id){
   const item=(kind==="store"?DATA.stores:DATA.services).find(x=>x.id===id);
   if(!item) return toast("Not found","bad");
-  CUR={kind,item}; go("detail");
-  $("view-detail").innerHTML=`<div class="muted" style="padding:30px" class="center">Loading…</div>`;
+  CUR={kind,item}; go("detail");                       // go() stops the banner carousel
+  $("view-detail").innerHTML=`<div class="empty">Loading ${esc(item.name)}…</div>`;
   let extras=[];
   try{
     if(kind==="store") extras=(await db.collection("products").where("storeId","==",id).get()).docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.approved);
     else extras=(await db.collection("serviceOfferings").where("providerId","==",id).get()).docs.map(d=>({id:d.id,...d.data()})).filter(o=>o.approved);
   }catch(e){ /* offerings may use ownerUid; ignore */ }
-  renderDetail(item,kind,extras);
+  try{ renderDetail(item,kind,extras); }
+  catch(e){ $("view-detail").innerHTML=`<div class="empty">Couldn't open this shop.<br><button class="btn" style="margin-top:10px" onclick="go('${kind==="store"?"stores":"services"}')">← Back</button></div>`; }
 }
 function renderDetail(s,kind,extras){
   const isStore=kind==="store";

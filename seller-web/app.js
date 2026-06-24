@@ -368,10 +368,46 @@ async function renderBilling(){
       <div class="kpi"><div class="ic">📆</div><div class="n">${due?fmtTs(b.nextDueAt).split(",")[0]:"—"}</div><div class="l">Next due</div><div class="bar"></div></div>
       <div class="kpi"><div class="ic">${st.cls==="ok"?"✅":"⚠️"}</div><div class="n" style="font-size:17px">${st.label}</div><div class="l">Status</div><div class="bar"></div></div>
     </div>
-    ${plan?`<div class="panel"><b>Your plan · ${catLabel(plan.category)}</b><div class="crumb" style="margin-top:6px">One-time activation: <b>${money(plan.activationFee)}</b> · Monthly subscription: <b>${money(plan.monthlyFee)}</b></div>
-      <div class="crumb" style="margin-top:8px">Payments are recorded by the LocalKart team. Contact admin to activate or renew.</div></div>`:`<div class="panel crumb">No plan set for your category yet. The admin will configure pricing.</div>`}
+    ${plan?`<div class="panel"><b>Your plan · ${catLabel(plan.category)}</b>
+      <div class="crumb" style="margin-top:6px">One-time activation: <b>${money(plan.activationFee)}</b> · Monthly subscription: <b>${money(plan.monthlyFee)}</b></div>
+      <div class="row" style="margin-top:12px;flex-wrap:wrap">
+        ${!b.activationPaid?`<button class="btn" onclick="pay('activation')">🔓 Pay activation · ${money(plan.activationFee)}</button>`:""}
+        ${b.activationPaid&&st.key!=="active"?`<button class="btn" onclick="pay('monthly')">🔁 ${st.key==="expired"?"Renew":"Start"} subscription · ${money(plan.monthlyFee)}</button>`:""}
+        ${st.key==="active"?`<button class="ghost" onclick="pay('monthly')">🔁 Renew now (+1 month) · ${money(plan.monthlyFee)}</button>`:""}
+      </div>
+      <div class="crumb" style="margin-top:10px">🔒 Secure payment via Razorpay (UPI, cards, netbanking). Your subscription updates instantly after payment.</div></div>`
+      :`<div class="panel crumb">No plan set for your category yet. The admin will configure pricing.</div>`}
     <h2 class="sec">Payment history</h2>
     <div class="panel">${pays.length?pays.map(p=>`<div class="listrow"><div style="flex:1"><b>${p.type==="activation"?"Activation":"Monthly subscription"}</b><div class="crumb">${fmtTs(p.at)}</div></div><b>${money(p.amount)}</b></div>`).join(""):'<div class="empty">No payments recorded yet.</div>'}</div>`;
+}
+
+/* ---------- razorpay payments ---------- */
+async function pay(kind){
+  if(typeof Razorpay==="undefined") return toast("Payment library not loaded — refresh and retry","bad");
+  let order;
+  try{
+    toast("Starting secure payment…");
+    const create=firebase.functions().httpsCallable("createRazorpayOrder");
+    order=(await create({kind})).data;
+  }catch(e){ return toast(e.message||"Could not start payment","bad"); }
+  const rzp=new Razorpay({
+    key:order.keyId, amount:order.amount, currency:order.currency, order_id:order.orderId,
+    name:"LocalKart", description:kind==="activation"?"One-time activation fee":"Monthly subscription",
+    image:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛍️</text></svg>",
+    prefill:{ name:ME.name||"", email:ME.email||"", contact:ME.phone||"" },
+    theme:{ color:"#7C3AED" },
+    handler:async function(resp){
+      try{
+        toast("Verifying payment…");
+        const verify=firebase.functions().httpsCallable("verifyRazorpayPayment");
+        await verify({ razorpay_order_id:resp.razorpay_order_id, razorpay_payment_id:resp.razorpay_payment_id, razorpay_signature:resp.razorpay_signature, kind });
+        toast(kind==="activation"?"Activated! 🎉":"Subscription updated! 🎉","ok");
+        await loadAll(); go("billing");
+      }catch(e){ toast("Verification failed: "+(e.message||e)+". If money was deducted it will reflect shortly.","bad"); }
+    }
+  });
+  rzp.on("payment.failed",()=>toast("Payment failed or cancelled","bad"));
+  rzp.open();
 }
 
 /* ---------- notifications ---------- */

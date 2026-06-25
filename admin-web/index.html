@@ -221,13 +221,13 @@
 
     <section class="view" id="view-products"><div class="toolbar"><input id="q-prod" placeholder="Search by product or shop…" oninput="render()"></div>
       <div class="panel"><h3>Approved Products <span id="prodCount" class="crumb"></span></h3>
-        <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Products sellers added from the catalog with their selling price. Live = visible to customers.</div>
-        <table><thead><tr><th></th><th>Product</th><th>Shop</th><th>Selling price</th><th>MRP</th><th>In stock</th><th>Status</th><th>Action</th></tr></thead><tbody id="prodRows"></tbody></table></div></section>
+        <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Grouped by product — click a row to see every shop selling it and their price. Live = visible to customers.</div>
+        <table><thead><tr><th></th><th>Product / Shop</th><th>Category / Unit</th><th>Price</th><th>MRP</th><th>Stock</th><th>Status</th><th>Action</th></tr></thead><tbody id="prodRows"></tbody></table></div></section>
 
     <section class="view" id="view-serviceofferings"><div class="toolbar"><input id="q-svcoff" placeholder="Search by service or provider…" oninput="render()"></div>
       <div class="panel"><h3>Approved Services <span id="svcOffCount" class="crumb"></span></h3>
-        <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Services providers added from the catalog with their charge. Live = visible to customers.</div>
-        <table><thead><tr><th></th><th>Service</th><th>Provider</th><th>Charge</th><th>MRP</th><th>Status</th><th>Action</th></tr></thead><tbody id="svcOffRows"></tbody></table></div></section>
+        <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Grouped by service — click a row to see every provider offering it and their charge. Live = visible to customers.</div>
+        <table><thead><tr><th></th><th>Service / Provider</th><th>Category</th><th>Charge</th><th>MRP</th><th>Status</th><th>Action</th></tr></thead><tbody id="svcOffRows"></tbody></table></div></section>
 
     <section class="view" id="view-categories">
       <div class="tabs">
@@ -342,6 +342,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>

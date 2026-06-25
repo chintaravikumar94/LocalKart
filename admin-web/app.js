@@ -236,21 +236,7 @@ function render() {
   renderListing("stores", "storeRows", "q-stores", "isOpen", "Open", "Closed");
   renderListing("services", "svcRows", "q-svc", "available", "Yes", "No");
 
-  const qp = filt("q-prod");
-  const prodList = (D.products || []).filter(p => ((p.name || "") + " " + storeName(p.storeId)).toLowerCase().includes(qp));
-  const pc = document.getElementById("prodCount"); if (pc) pc.textContent = `· ${prodList.length} item(s) · ${prodList.filter(p => p.approved).length} live`;
-  document.getElementById("prodRows").innerHTML = prodList.map(p => {
-    const save = p.mrp > p.price ? `<div class="crumb" style="color:var(--green)">${Math.round((p.mrp - p.price) / p.mrp * 100)}% off</div>` : "";
-    return `<tr><td>${img(p.imageUrl)}</td>
-     <td><b>${p.name}</b><div class="crumb">${p.category ? catLabel(p.category) : ""}</div></td>
-     <td><b>${esc(storeName(p.storeId))}</b></td>
-     <td>${money(p.price)}${save}</td><td>${p.mrp ? money(p.mrp) : "-"}</td>
-     <td>${p.inStock ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td>
-     <td>${tag(p.approved)}</td>
-     <td class="row-actions">
-       ${p.approved ? `<button class="mini" onclick="toggleField('products','${p.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('products','${p.id}','approved',true)">Approve</button>`}
-       <button class="mini" onclick="toggleField('products','${p.id}','inStock',${!p.inStock})">${p.inStock ? "Mark out" : "In stock"}</button>
-       <button class="reject" onclick="del('products','${p.id}')">Delete</button></td></tr>`; }).join("") || empty(8);
+  renderProducts();
 
   renderServiceOfferings();
 
@@ -704,22 +690,84 @@ async function toggleField(col, id, field, value) {
   try { await db.collection(col).doc(id).update({ [field]: value }); toast("Updated", "ok"); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
-// Seller service offerings page — who's selling each service & at what price.
+// Group seller listings by the catalog item they came from.
+function groupByItem(arr) {
+  const g = {};
+  (arr || []).forEach(x => {
+    const k = x.catalogId || ("name:" + (x.name || ""));
+    if (!g[k]) g[k] = { key: k, name: x.name, category: x.category, imageUrl: x.imageUrl, items: [] };
+    g[k].items.push(x);
+  });
+  return Object.values(g).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+}
+function priceRange(items) {
+  const p = items.map(x => x.price).filter(n => n > 0);
+  if (!p.length) return "—";
+  const mn = Math.min(...p), mx = Math.max(...p);
+  return mn === mx ? money(mn) : `${money(mn)}–${money(mx)}`;
+}
+const discCell = x => x.mrp > x.price ? `<span class="crumb" style="color:var(--green)">${Math.round((x.mrp - x.price) / x.mrp * 100)}% off</span>` : "";
+
+/* ---------- Products page (grouped by item → expand to all shops) ---------- */
+let prodOpen = new Set();
+function toggleProd(k) { prodOpen.has(k) ? prodOpen.delete(k) : prodOpen.add(k); renderProducts(); }
+function renderProducts() {
+  const el = document.getElementById("prodRows"); if (!el) return;
+  const q = filt("q-prod");
+  let groups = groupByItem(DATA.products);
+  if (q) groups = groups.filter(g => (g.name || "").toLowerCase().includes(q) || g.items.some(p => storeName(p.storeId).toLowerCase().includes(q)));
+  const totalItems = (DATA.products || []).length, live = (DATA.products || []).filter(p => p.approved).length;
+  const pc = document.getElementById("prodCount"); if (pc) pc.textContent = `· ${groups.length} product(s) · ${totalItems} listing(s) · ${live} live`;
+  el.innerHTML = groups.map(g => {
+    const open = prodOpen.has(g.key), liveN = g.items.filter(p => p.approved).length;
+    let html = `<tr style="cursor:pointer;background:var(--card-2)" onclick="toggleProd('${g.key}')">
+      <td>${open ? "▾" : "▸"} ${img(g.imageUrl)}</td>
+      <td><b>${g.name || "-"}</b><div class="crumb">${g.items.length} shop(s)</div></td>
+      <td>${g.category ? catLabel(g.category) : "-"}</td>
+      <td><b>${priceRange(g.items)}</b></td><td></td><td></td>
+      <td><span class="tag info">${liveN}/${g.items.length} live</span></td><td></td></tr>`;
+    if (open) html += g.items.slice().sort((a, b) => (a.price || 0) - (b.price || 0)).map(p =>
+      `<tr><td></td>
+       <td style="padding-left:26px">↳ <b>${esc(storeName(p.storeId))}</b></td>
+       <td class="crumb">${p.unit || ""}</td>
+       <td>${money(p.price)} ${discCell(p)}</td><td>${p.mrp ? money(p.mrp) : "-"}</td>
+       <td>${p.inStock ? '<span class="tag ok">In stock</span>' : '<span class="tag no">Out</span>'}</td>
+       <td>${tag(p.approved)}</td>
+       <td class="row-actions">
+         ${p.approved ? `<button class="mini" onclick="toggleField('products','${p.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('products','${p.id}','approved',true)">Approve</button>`}
+         <button class="reject" onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("");
+    return html;
+  }).join("") || empty(8);
+}
+
+/* ---------- Services page (grouped by item → expand to all providers) ---------- */
+let svcOpen = new Set();
+function toggleSvc(k) { svcOpen.has(k) ? svcOpen.delete(k) : svcOpen.add(k); renderServiceOfferings(); }
 function renderServiceOfferings() {
   const el = document.getElementById("svcOffRows"); if (!el) return;
   const q = filt("q-svcoff");
-  const list = (DATA.offerings || []).filter(o => ((o.name || "") + " " + providerName(o.providerId)).toLowerCase().includes(q));
-  const sc = document.getElementById("svcOffCount"); if (sc) sc.textContent = `· ${list.length} item(s) · ${list.filter(o => o.approved).length} live`;
-  el.innerHTML = list.map(o => {
-    const save = o.mrp > o.price ? `<div class="crumb" style="color:var(--green)">${Math.round((o.mrp - o.price) / o.mrp * 100)}% off</div>` : "";
-    return `<tr><td>${img(o.imageUrl)}</td>
-      <td><b>${o.name}</b><div class="crumb">${o.category ? catLabel(o.category) : ""}</div></td>
-      <td><b>${esc(providerName(o.providerId))}</b></td>
-      <td>${money(o.price)}${save}</td><td>${o.mrp ? money(o.mrp) : "-"}</td>
-      <td>${tag(o.approved)}</td>
-      <td class="row-actions">
-        ${o.approved ? `<button class="mini" onclick="toggleField('serviceOfferings','${o.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('serviceOfferings','${o.id}','approved',true)">Approve</button>`}
-        <button class="reject" onclick="del('serviceOfferings','${o.id}')">Delete</button></td></tr>`;
+  let groups = groupByItem(DATA.offerings);
+  if (q) groups = groups.filter(g => (g.name || "").toLowerCase().includes(q) || g.items.some(o => providerName(o.providerId).toLowerCase().includes(q)));
+  const totalItems = (DATA.offerings || []).length, live = (DATA.offerings || []).filter(o => o.approved).length;
+  const sc = document.getElementById("svcOffCount"); if (sc) sc.textContent = `· ${groups.length} service(s) · ${totalItems} listing(s) · ${live} live`;
+  el.innerHTML = groups.map(g => {
+    const open = svcOpen.has(g.key), liveN = g.items.filter(o => o.approved).length;
+    let html = `<tr style="cursor:pointer;background:var(--card-2)" onclick="toggleSvc('${g.key}')">
+      <td>${open ? "▾" : "▸"} ${img(g.imageUrl)}</td>
+      <td><b>${g.name || "-"}</b><div class="crumb">${g.items.length} provider(s)</div></td>
+      <td>${g.category ? catLabel(g.category) : "-"}</td>
+      <td><b>${priceRange(g.items)}</b></td><td></td>
+      <td><span class="tag info">${liveN}/${g.items.length} live</span></td><td></td></tr>`;
+    if (open) html += g.items.slice().sort((a, b) => (a.price || 0) - (b.price || 0)).map(o =>
+      `<tr><td></td>
+       <td style="padding-left:26px">↳ <b>${esc(providerName(o.providerId))}</b></td>
+       <td></td>
+       <td>${money(o.price)} ${discCell(o)}</td><td>${o.mrp ? money(o.mrp) : "-"}</td>
+       <td>${tag(o.approved)}</td>
+       <td class="row-actions">
+         ${o.approved ? `<button class="mini" onclick="toggleField('serviceOfferings','${o.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('serviceOfferings','${o.id}','approved',true)">Approve</button>`}
+         <button class="reject" onclick="del('serviceOfferings','${o.id}')">Delete</button></td></tr>`).join("");
+    return html;
   }).join("") || empty(7);
 }
 // Approve a seller's pending location/pincode change → make it the active location.

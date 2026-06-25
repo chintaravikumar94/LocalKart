@@ -41,6 +41,10 @@
   .or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
   .err{color:#e11d48;font-size:13px;min-height:18px;margin-top:10px}
   .link{color:var(--primary);cursor:pointer;font-size:13px}
+  .pw-wrap{position:relative;margin:7px 0}
+  .pw-wrap input{margin:0;padding-right:46px;width:100%}
+  .pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;opacity:.65;user-select:none;line-height:1}
+  .pw-eye:hover{opacity:1}
 
   /* app shell */
   #app{display:none;min-height:100vh;flex-direction:column}
@@ -216,7 +220,7 @@
         <input id="suMobile" type="tel" placeholder="Mobile number" />
       </div>
       <input id="email" type="email" placeholder="Email" />
-      <input id="password" type="password" placeholder="Password" />
+      <div class="pw-wrap"><input id="password" type="password" placeholder="Password" /><span class="pw-eye" onclick="togglePw('password',this)">👁️</span></div>
       <button class="btn-primary" onclick="loginEmail()" id="loginBtn">Sign in</button>
       <div class="err" id="loginErr"></div>
       <div class="center" style="margin-top:8px"><span class="link" id="toggleMode" onclick="toggleMode()">New here? Create an account</span></div>
@@ -268,6 +272,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<script src="app.js?v=22"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>

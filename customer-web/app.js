@@ -59,6 +59,8 @@ function matchText(s,q){ return !q || ((s.name||"")+" "+(s.category||"")+" "+(s.
 
 /* ---------- auth ---------- */
 function loginErr(m){ $("loginErr").textContent=m||""; }
+function togglePw(id,el){ const i=$(id); if(!i) return; const show=i.type==="password"; i.type=show?"text":"password"; if(el) el.textContent=show?"🙈":"👁️"; }
+function pwField(id,ph){ return `<div class="pw-wrap"><input id="${id}" type="password" placeholder="${ph}"><span class="pw-eye" onclick="togglePw('${id}',this)">👁️</span></div>`; }
 let BUSY=false, freshLogin=false;  // freshLogin: true only on an explicit sign-in (not refresh/restore)
 function toggleMode(){ SIGNUP=!SIGNUP; $("signupExtra").style.display=SIGNUP?"block":"none"; $("loginBtn").textContent=SIGNUP?"Create account":"Sign in"; $("toggleMode").textContent=SIGNUP?"Have an account? Sign in":"New here? Create an account"; loginErr(""); }
 async function loginGoogle(){ loginErr(""); freshLogin=true; try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }catch(e){ freshLogin=false; loginErr(e.message); } }
@@ -97,8 +99,8 @@ function showSetPassword(){
   $("authBox").innerHTML=`
     <div style="font-weight:800;font-size:17px">Set your password 🔒</div>
     <div class="sub" style="margin:4px 0 16px">Set a password so you can also log in with your email (${esc(auth.currentUser?.email||"")}) next time.</div>
-    <input id="sp-pass" type="password" placeholder="New password (min 6 chars)">
-    <input id="sp-pass2" type="password" placeholder="Confirm password">
+    ${pwField("sp-pass","New password (min 6 chars)")}
+    ${pwField("sp-pass2","Confirm password")}
     <button class="btn-primary" id="sp-save" onclick="setPasswordNow()">Set password & continue</button>
     <div class="err" id="loginErr"></div>
     <div class="center" style="margin-top:8px"><span class="link" onclick="skipPassword()">Skip for now</span></div>`;
@@ -120,7 +122,7 @@ function showProfileSetup(u){
     <div class="sub" style="margin:4px 0 16px">Just a couple of details to finish creating your account.</div>
     <input id="ps-name" placeholder="Your name" value="${esc(u.displayName||"")}">
     <input id="ps-mobile" type="tel" placeholder="Mobile number">
-    <input id="ps-pass" type="password" placeholder="Create a password (min 6 chars)">
+    ${pwField("ps-pass","Create a password (min 6 chars)")}
     <button class="btn-primary" id="ps-save" onclick="completeGoogleSignup()">Create account & continue</button>
     <div class="err" id="loginErr"></div>
     <div class="sub" style="margin-top:10px;font-size:12px">A password lets you also sign in with email later.</div>`;

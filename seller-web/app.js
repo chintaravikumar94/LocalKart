@@ -152,7 +152,7 @@ function listingCard(s,kind){
     <div class="between"><b>${esc(s.name)}</b>${s.approved?'<span class="tag ok">Live</span>':'<span class="tag wait">Pending approval</span>'}</div>
     <div class="crumb" style="margin:4px 0">${catLabel(s.category)} · ★ ${(s.rating||0).toFixed(1)} (${s.ratingCount||0})</div>
     <div class="crumb">${esc(s.address||"")}</div>
-    <div style="margin-top:4px">${isStore?shopTypeBadge(s.shopType)+' ':''}${s.showContact?'<span class="tag ok">Contact shared</span>':'<span class="tag wait">Contact hidden</span>'}${s.location?' <span class="tag info">📍 Mapped</span>':''}${s.pincode?` <span class="tag info">PIN ${esc(s.pincode)}</span>`:''}${s.locationApprovalPending?' <span class="tag wait">Location pending</span>':''}</div>
+    <div style="margin-top:4px">${isStore?shopTypeBadge(s.shopType)+fulfilBadges(s)+' ':''}${s.showContact?'<span class="tag ok">Contact shared</span>':'<span class="tag wait">Contact hidden</span>'}${s.location?' <span class="tag info">📍 Mapped</span>':''}${s.pincode?` <span class="tag info">PIN ${esc(s.pincode)}</span>`:''}${s.locationApprovalPending?' <span class="tag wait">Location pending</span>':''}</div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap">
       <button class="mini" onclick="openListing('${kind}','${s.id}')">Edit</button>
       <button class="mini" onclick="toggleAvail('${kind}','${s.id}',${isStore?!s.isOpen:!s.available})">${isStore?(s.isOpen?"Mark closed":"Mark open"):(s.available?"Mark busy":"Mark available")}</button>
@@ -189,6 +189,9 @@ function openListing(kind,id){
       ${opt("hybrid","🏬💻 Store + Online — you have a shop and also serve online",s?.shopType||"physical")}
     </select>`:""}
     <label>Category</label><select id="l-cat">${catOptions(isStore?"store":"service",s?.category)}</select>
+    ${isStore?`<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)"><b>Fulfilment</b><div class="crumb">How customers get their order.</div></div>
+    ${toggleRow("l-delivery","🚚 Door delivery available",!!s?.doorDelivery)}
+    ${toggleRow("l-pickup","🛍️ Store pickup available",!!s?.pickup)}`:""}
     <label>Description</label><textarea id="l-desc" rows="2">${esc(s?.description)}</textarea>
     <label>Address / area</label><input id="l-addr" value="${esc(s?.address)}">
     ${isStore?"":`<label>Price per visit (₹)</label><input id="l-ppv" type="number" value="${s?.pricePerVisit??""}">`}
@@ -222,6 +225,7 @@ function openListing(kind,id){
 // Per-field visibility default: explicit flag if set, else fall back to legacy showContact.
 function flagDefault(s,key){ return s && s[key]!==undefined ? !!s[key] : !!(s && s.showContact); }
 function shopTypeBadge(t){ t=t||"physical"; if(t==="digital") return '<span class="tag info">💻 Online store</span>'; if(t==="hybrid") return '<span class="tag info">🏬💻 Store + Online</span>'; return '<span class="tag ok">🏬 Physical store</span>'; }
+function fulfilBadges(s){ let h=""; if(s.doorDelivery) h+=' <span class="tag info">🚚 Delivery</span>'; if(s.pickup) h+=' <span class="tag info">🛍️ Pickup</span>'; return h; }
 function toggleRow(id,label,on){
   return `<label class="switch"><input type="checkbox" id="${id}" ${on?"checked":""}><span class="track"></span><span>${label}</span></label>`;
 }
@@ -246,7 +250,7 @@ async function saveListing(){
       phone:val("l-phone"), whatsapp:val("l-wa"),
       showPhoto, showPhone, showWhatsapp, showLocation,
       showContact:(showPhoto||showPhone||showWhatsapp||showLocation)};
-    if(isStore) base.shopType=val("l-shoptype")||"physical";
+    if(isStore){ base.shopType=val("l-shoptype")||"physical"; base.doorDelivery=$("l-delivery")?.checked||false; base.pickup=$("l-pickup")?.checked||false; }
     if(!isStore) base.pricePerVisit=parseFloat(val("l-ppv")||"0")||0;
     if(photoUrl) base.photoUrl=photoUrl;
     if(ownerPhotoUrl) base.ownerPhotoUrl=ownerPhotoUrl;

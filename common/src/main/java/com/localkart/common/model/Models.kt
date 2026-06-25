@@ -33,6 +33,8 @@ data class Store(
     val name: String = "",
     val category: String = "",        // groceries | mobile_repairing | fancy | net_center | meeseva | household
     val shopType: String = "physical", // physical (storefront) | digital (online only) | hybrid (both)
+    val doorDelivery: Boolean = false, // delivers to customer's door
+    val pickup: Boolean = false,       // customer can pick up from shop
     val description: String = "",
     val photoUrl: String = "",
     val rating: Double = 0.0,

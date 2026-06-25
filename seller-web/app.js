@@ -13,7 +13,7 @@ const FV = firebase.firestore.FieldValue, TS = firebase.firestore.Timestamp;
 
 /* ---------- state ---------- */
 let ME = null;
-const MY = { stores: [], services: [], products: [], offerings: [], orders: [], bookings: [], requests: [], appointments: [] };
+const MY = { stores: [], services: [], products: [], offerings: [], orders: [], bookings: [], requests: [], appointments: [], branding: [] };
 let BILLING = {}, PLANS = [], CATS = [];
 let SIGNUP = false, chatUnsub = null, curThreadId = null, threadsCache = [];
 
@@ -71,7 +71,7 @@ function go(view){
   document.querySelectorAll("#tabs a").forEach(x=>x.classList.toggle("active",x.dataset.view===view));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active")); $("view-"+view).classList.add("active");
   if(chatUnsub && view!=="chat"){ chatUnsub(); chatUnsub=null; } window.scrollTo(0,0);
-  ({dashboard:renderDashboard,shop:renderShop,services:renderServices,products:renderProducts,orders:renderOrders,bookings:renderBookings,chat:renderChat,billing:renderBilling,notifications:renderNotifications,account:renderAccount}[view]||(()=>{}))();
+  ({dashboard:renderDashboard,shop:renderShop,services:renderServices,products:renderProducts,orders:renderOrders,bookings:renderBookings,chat:renderChat,billing:renderBilling,branding:renderBranding,notifications:renderNotifications,account:renderAccount}[view]||(()=>{}))();
 }
 
 /* ---------- data ---------- */
@@ -92,6 +92,7 @@ async function loadAll(){
     const storeIds=MY.stores.map(s=>s.id), svcIds=MY.services.map(s=>s.id);
     MY.products = storeIds.length?await qChunks("products","storeId",storeIds):[];
     MY.offerings = (await db.collection("serviceOfferings").where("ownerUid","==",ME.uid).get()).docs.map(d=>({id:d.id,...d.data()}));
+    MY.branding = (await db.collection("branding").where("ownerUid","==",ME.uid).get()).docs.map(d=>({id:d.id,...d.data()}));
     MY.orders = storeIds.length?await qChunks("orders","storeId",storeIds):[];
     MY.bookings = svcIds.length?await qChunks("bookings","providerId",svcIds):[];
     MY.requests = svcIds.length?await qChunks("serviceRequests","providerId",svcIds):[];
@@ -110,7 +111,7 @@ function rerenderActive(){
   $("bizName").textContent = MY.stores[0]?.name || MY.services[0]?.name || ME.name || "Your business";
   const v=(document.querySelector(".view.active")?.id||"view-dashboard").replace("view-","");
   if(v==="chat") return;   // chat has its own live listener; don't disturb it
-  ({dashboard:renderDashboard,shop:renderShop,services:renderServices,products:renderProducts,orders:renderOrders,bookings:renderBookings,billing:renderBilling,notifications:renderNotifications,account:renderAccount}[v]||(()=>{}))();
+  ({dashboard:renderDashboard,shop:renderShop,services:renderServices,products:renderProducts,orders:renderOrders,bookings:renderBookings,billing:renderBilling,branding:renderBranding,notifications:renderNotifications,account:renderAccount}[v]||(()=>{}))();
 }
 function liveRender(){ clearTimeout(refreshTimer); refreshTimer=setTimeout(()=>{ if(modalOpen()){ refreshDirty=true; return; } rerenderActive(); },200); }
 function rebuildScoped(){
@@ -130,6 +131,7 @@ function subscribeLive(){
   db.collection("stores").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.stores=s.docs.map(d=>({id:d.id,...d.data()})); rebuildScoped(); liveRender(); },e=>console.warn("stores",e.message));
   db.collection("services").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.services=s.docs.map(d=>({id:d.id,...d.data()})); rebuildScoped(); liveRender(); },e=>console.warn("services",e.message));
   db.collection("serviceOfferings").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.offerings=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },e=>console.warn("offerings",e.message));
+  db.collection("branding").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.branding=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },e=>console.warn("branding",e.message));
   db.collection("billing").doc(ME.uid).onSnapshot(d=>{ BILLING=d.exists?d.data():{}; liveRender(); },e=>console.warn("billing",e.message));
   db.collection("plans").onSnapshot(s=>{ PLANS=s.docs.map(d=>({id:d.id,...d.data()})); },e=>{});
   db.collection("categories").onSnapshot(s=>{ CATS=s.docs.map(d=>({id:d.id,...d.data()})); },e=>{});
@@ -559,6 +561,65 @@ async function pay(kind){
   rzp.on("payment.failed",()=>toast("Payment failed or cancelled","bad"));
   rzp.open();
 }
+
+/* ---------- branding (banner / info strip / animation) ---------- */
+const ANIMS=[["none","None"],["sale_pulse","🔴 Sale pulse"],["confetti","🎉 Confetti"],["sparkle","✨ Sparkle"],["festive","🎊 Festive bunting"],["newbadge","🆕 New badge"]];
+function animLabel(id){ const a=ANIMS.find(x=>x[0]===id); return a?a[1]:(id||"None"); }
+function renderBranding(){
+  const targets=[...MY.stores.map(s=>({type:"store",id:s.id,name:s.name})),...MY.services.map(s=>({type:"service",id:s.id,name:s.name}))];
+  if(!targets.length){ $("view-branding").innerHTML=`<h2 class="sec">Branding</h2><div class="empty">Create a shop or service first to add branding.</div>`; return; }
+  const blocks=targets.map(t=>{
+    const items=(MY.branding||[]).filter(b=>b.targetId===t.id);
+    const list=items.length?items.map(brandingRow).join(""):'<div class="crumb" style="padding:8px 0">No branding yet — add a banner, info strip or animation.</div>';
+    return `<div class="panel"><div class="between"><b>${esc(t.name)}</b> <span class="tag info">${t.type}</span></div>
+      <div class="row" style="margin-top:10px;flex-wrap:wrap">
+        <button class="mini" onclick="openBranding('banner','${t.type}','${t.id}')">＋ Banner</button>
+        <button class="mini" onclick="openBranding('infostrip','${t.type}','${t.id}')">＋ Info strip</button>
+        <button class="mini" onclick="openBranding('animation','${t.type}','${t.id}')">＋ Animation</button>
+      </div>
+      <div style="margin-top:10px">${list}</div></div>`;
+  }).join("");
+  $("view-branding").innerHTML=`<h2 class="sec">Branding <span class="crumb">banners, info strip & animations for your page</span></h2>
+    <div class="banner warn"><span>⏳</span><div>Each item is reviewed by admin before it shows to customers.</div></div>${blocks}`;
+}
+function brandingRow(b){
+  const status=b.approved?'<span class="tag ok">Live</span>':'<span class="tag wait">Pending approval</span>';
+  let preview="";
+  if(b.kind==="banner") preview=`${b.imageUrl?`<img src="${esc(b.imageUrl)}" style="width:80px;height:44px;object-fit:cover;border-radius:8px">`:""} <b>Banner</b>${b.text?` · ${esc(b.text)}`:""}`;
+  else if(b.kind==="infostrip") preview=`<b>Info strip:</b> <span style="background:${b.bgColor||'#2563EB'};color:${b.textColor||'#fff'};padding:3px 10px;border-radius:6px;font-size:12px">${esc(b.text||"")}</span>`;
+  else preview=`<b>Animation:</b> ${animLabel(b.animation)}`;
+  return `<div class="listrow"><div style="flex:1">${preview}</div>${status} <button class="reject" onclick="delBranding('${b.id}')">Delete</button></div>`;
+}
+let brTarget=null;
+function openBranding(kind,type,id){
+  brTarget={kind,type,id};
+  const tName=(MY.stores.concat(MY.services)).find(x=>x.id===id)?.name||"";
+  let body="";
+  if(kind==="banner") body=`<label>Banner image</label><input id="br-file" type="file" accept="image/*" onchange="previewFile('br-file','br-prev')">
+    <img id="br-prev" style="display:none;width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:8px">
+    <label>Caption (optional)</label><input id="br-text" placeholder="e.g. Diwali Sale">`;
+  else if(kind==="infostrip") body=`<label>Strip text</label><input id="br-text" placeholder="e.g. 🎉 Flat 20% off today only!">
+    <div class="row" style="gap:8px;margin-top:4px"><div style="flex:1"><label>Background</label><input id="br-bg" type="color" value="#2563EB"></div><div style="flex:1"><label>Text color</label><input id="br-fg" type="color" value="#ffffff"></div></div>`;
+  else body=`<label>Animation effect</label><select id="br-anim">${ANIMS.map(a=>`<option value="${a[0]}">${a[1]}</option>`).join("")}</select>
+    <div class="crumb" style="margin-top:6px">A subtle effect on your shop page to grab attention.</div>`;
+  modal(`<h3>Request ${kind==="infostrip"?"info strip":kind}</h3><p class="crumb">For: ${esc(tName)}</p>
+    ${body}
+    <div class="banner warn" style="margin-top:10px"><span>⏳</span><div>Sent to admin for approval before customers see it.</div></div>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="btn" id="br-save" onclick="saveBranding()">Request approval</button></div>`);
+}
+async function saveBranding(){
+  const {kind,type,id}=brTarget; const btn=$("br-save"); if(btn){btn.disabled=true;btn.textContent="Sending…";}
+  const fail=m=>{ toast(m,"bad"); if(btn){btn.disabled=false;btn.textContent="Request approval";} };
+  try{
+    const data={ownerUid:ME.uid,targetType:type,targetId:id,kind,approved:false,createdAt:FV.serverTimestamp()};
+    if(kind==="banner"){ const url=await uploadImage("br-file","branding"); if(!url) return fail("Choose an image"); data.imageUrl=url; data.text=val("br-text"); }
+    else if(kind==="infostrip"){ data.text=val("br-text"); if(!data.text) return fail("Enter strip text"); data.bgColor=$("br-bg").value; data.textColor=$("br-fg").value; }
+    else { data.animation=val("br-anim")||"none"; }
+    await db.collection("branding").add(data);
+    toast("Sent for approval ✅","ok"); closeModal(); await loadAll(); go("branding");
+  }catch(e){ fail("Failed: "+e.message); }
+}
+async function delBranding(id){ if(!confirm("Delete this branding?")) return; try{ await db.collection("branding").doc(id).delete(); toast("Deleted","ok"); await loadAll(); renderBranding(); }catch(e){ toast("Failed: "+e.message,"bad"); } }
 
 /* ---------- notifications ---------- */
 async function loadNotifBadge(){ try{ const s=await db.collection("notifications").where("toUid","==",ME.uid).get(); const u=s.docs.filter(d=>!d.data().read).length; const bd=$("notifBadge"); bd.style.display=u?"grid":"none"; bd.textContent=u; }catch(e){} }

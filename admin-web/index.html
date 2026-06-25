@@ -152,6 +152,7 @@
       <a data-view="notifications"><span class="ico">🔔</span> Notifications</a>
       <a data-view="grow"><span class="ico">🚀</span> Grow Items</a>
       <a data-view="banners"><span class="ico">🖼️</span> Banners</a>
+      <a data-view="branding"><span class="ico">🎨</span> Branding</a>
     </nav>
     <div class="spacer"></div>
     <div class="me"><div class="av" id="me-av">A</div><div><div id="me-name" style="font-size:13px">Admin</div><small id="me-email">—</small></div></div>
@@ -188,6 +189,7 @@
         <button class="tab on" id="aptab-sellers" onclick="setApprTab('sellers',this)">🏪 New sellers <span id="ap-c-sellers" class="count"></span></button>
         <button class="tab" id="aptab-products" onclick="setApprTab('products',this)">📦 Products <span id="ap-c-products" class="count"></span></button>
         <button class="tab" id="aptab-services" onclick="setApprTab('services',this)">🛠️ Service offerings <span id="ap-c-services" class="count"></span></button>
+        <button class="tab" id="aptab-branding" onclick="setApprTab('branding',this)">🎨 Branding <span id="ap-c-branding" class="count"></span></button>
       </div>
       <div class="panel"><h3>Pending approvals <span id="apprCount" class="crumb"></span></h3>
         <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Review and publish what sellers submit. Approving makes it visible to customers; rejecting removes it.</div>
@@ -331,6 +333,11 @@
     <section class="view" id="view-banners">
       <div class="panel"><h3>Banners <span><button class="ghost" onclick="openBannerSettings()" style="margin-right:8px">🎨 Design</button><button class="add" onclick="openBanner()">＋ Add</button></span></h3>
         <table><thead><tr><th>Title</th><th>Audience</th><th>Order</th><th>Active</th><th>Action</th></tr></thead><tbody id="bannerRows"></tbody></table></div></section>
+
+    <section class="view" id="view-branding"><div class="toolbar"><input id="q-brand" placeholder="Search by shop / provider…" oninput="render()"></div>
+      <div class="panel"><h3>Seller Branding <span id="brandCount" class="crumb"></span></h3>
+        <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Approved banners, info strips & animations running on sellers' shop/service pages. Disable hides it from customers.</div>
+        <table><thead><tr><th>Shop / Provider</th><th>Type</th><th>Preview</th><th>Status</th><th>Action</th></tr></thead><tbody id="brandRows"></tbody></table></div></section>
   </main>
 </div>
 
@@ -342,6 +349,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>

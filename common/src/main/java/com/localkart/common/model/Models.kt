@@ -210,6 +210,22 @@ data class BannerSettings(
     val template: String = "full"        // full | overlay | framed
 )
 
+/** Per-seller branding (banner / info strip / animation) shown on their shop/service page after admin approval. */
+data class Branding(
+    @DocumentId val id: String = "",
+    val ownerUid: String = "",
+    val targetType: String = "store",   // store | service
+    val targetId: String = "",
+    val kind: String = "banner",         // banner | infostrip | animation
+    val imageUrl: String = "",           // banner
+    val text: String = "",               // banner caption / info strip text
+    val bgColor: String = "",            // info strip
+    val textColor: String = "",          // info strip
+    val animation: String = "none",      // animation preset
+    val approved: Boolean = false,
+    val createdAt: Timestamp = Timestamp.now()
+)
+
 data class Category(
     @DocumentId val id: String = "",
     val name: String = "",

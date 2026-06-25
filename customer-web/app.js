@@ -215,12 +215,32 @@ async function openDetail(kind,id){
     if(kind==="store") extras=(await db.collection("products").where("storeId","==",id).get()).docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.approved);
     else extras=(await db.collection("serviceOfferings").where("providerId","==",id).get()).docs.map(d=>({id:d.id,...d.data()})).filter(o=>o.approved);
   }catch(e){ /* offerings may use ownerUid; ignore */ }
+  try{ CUR.brand=(await db.collection("branding").where("targetId","==",id).get()).docs.map(d=>({id:d.id,...d.data()})).filter(b=>b.approved); }catch(e){ CUR.brand=[]; }
   try{ renderDetail(item,kind,extras); }
   catch(e){ $("view-detail").innerHTML=`<div class="empty">Couldn't open this shop.<br><button class="btn" style="margin-top:10px" onclick="go('${kind==="store"?"stores":"services"}')">← Back</button></div>`; }
 }
+function animHtml(t){
+  if(t==="sale_pulse") return `<div class="anim-pulse">🔴 SALE</div>`;
+  if(t==="confetti") return `<div class="anim-deco">🎉 🎊 ✨ 🎉 🎊</div>`;
+  if(t==="sparkle") return `<div class="anim-deco">✨ ✨ ✨ ✨ ✨</div>`;
+  if(t==="festive") return `<div class="anim-deco">🎊 🎈 🎉 🎈 🎊 🎉 🎈</div>`;
+  if(t==="newbadge") return `<div class="anim-new">🆕 NEW</div>`;
+  return "";
+}
+function brandingHtml(brand){
+  if(!brand||!brand.length) return "";
+  let h="";
+  const anim=brand.find(b=>b.kind==="animation"&&b.animation&&b.animation!=="none");
+  if(anim) h+=animHtml(anim.animation);
+  brand.filter(b=>b.kind==="infostrip"&&b.text).forEach(s=>{
+    h+=`<div class="infostrip" style="background:${esc(s.bgColor||'#2563EB')};color:${esc(s.textColor||'#fff')}"><div class="infostrip-in">${esc(s.text)}</div></div>`; });
+  const banners=brand.filter(b=>b.kind==="banner"&&b.imageUrl);
+  if(banners.length) h+=`<div class="sbanners">${banners.map(b=>`<img src="${esc(b.imageUrl)}" alt="${esc(b.text||'')}">`).join("")}</div>`;
+  return h;
+}
 function renderDetail(s,kind,extras){
   const isStore=kind==="store";
-  const head=`<div class="panel" style="padding:0;overflow:hidden">
+  const head=brandingHtml(CUR&&CUR.brand)+`<div class="panel" style="padding:0;overflow:hidden">
       <div class="hero">${s.photoUrl?`<img src="${esc(s.photoUrl)}" alt="">`:`<div class="hero-ph">🏬</div>`}</div>
       <div style="padding:16px">
         <div class="between"><h2 style="font-size:20px">${esc(s.name)}</h2>

@@ -52,6 +52,14 @@ service cloud.firestore {
     match /categories/{id} { allow read: if true; allow write: if isAdmin(); }
     match /growItems/{id} { allow read: if isSignedIn(); allow write: if isAdmin(); }
 
+    // Per-seller branding (banner / info strip / animation). Seller requests; admin approves.
+    match /branding/{id} {
+      allow read: if true;
+      allow create: if isOwner(request.resource.data.ownerUid) && request.resource.data.approved == false;
+      allow update: if isAdmin() || (isOwner(resource.data.ownerUid) && request.resource.data.approved == resource.data.approved);
+      allow delete: if isAdmin() || isOwner(resource.data.ownerUid);
+    }
+
     match /orders/{id} {
       allow read: if isSignedIn();
       allow create: if isOwner(request.resource.data.customerUid);

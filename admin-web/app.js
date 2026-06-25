@@ -122,7 +122,7 @@ const CRUMBS = {
   orders: "Customer orders", bookings: "Service bookings", appointments: "Store appointments",
   requests: "Service / job requests", reviews: "Customer feedback", customers: "Registered users",
   owners: "Shop owners — contact & billing", providers: "Service providers — contact & billing",
-  admins: "Console administrators", notifications: "Broadcast to apps", grow: "Seller promos", banners: "Home banners",
+  admins: "Console administrators", notifications: "Broadcast to apps", grow: "Seller promos", banners: "Home banners", branding: "Seller shop/service branding",
   catalog: "Company master catalog", plans: "Activation & subscription pricing", billing: "Who paid — activation & subscription"
 };
 document.getElementById("nav").addEventListener("click", e => {
@@ -194,7 +194,7 @@ async function loadAll() {
   const subs = [["stores","stores"],["services","services"],["products","products"],["orders","orders"],
     ["bookings","bookings"],["appointments","appointments"],["serviceRequests","serviceRequests"],["reviews","reviews"],
     ["users","users"],["admins","admins"],["categories","categories"],["growItems","grow"],["banners","banners"],
-    ["catalog","catalog"],["serviceOfferings","offerings"],["plans","plans"],["billing","billing"],["payments","payments"]];
+    ["catalog","catalog"],["serviceOfferings","offerings"],["plans","plans"],["billing","billing"],["payments","payments"],["branding","branding"]];
   subs.forEach(([col, key]) => {
     db.collection(col).limit(1000).onSnapshot(
       s => { DATA[key] = s.docs.map(d => ({ id: d.id, ...d.data() })); recomputePending(); scheduleRender(); },
@@ -239,6 +239,7 @@ function render() {
   renderProducts();
 
   renderServiceOfferings();
+  renderBrandingAdmin();
 
   const qcat = filt("q-catalog");
   const catRows = (D.catalog || []).filter(c =>
@@ -653,7 +654,8 @@ function renderApprovals() {
   const prods = (DATA.products || []).filter(p => !p.approved);
   const offs = (DATA.offerings || []).filter(o => !o.approved);
   const setc = (id, n) => { const e = document.getElementById(id); if (e) e.textContent = n || ""; };
-  setc("ap-c-sellers", PENDING.length); setc("ap-c-products", prods.length); setc("ap-c-services", offs.length);
+  const brands = (DATA.branding || []).filter(b => !b.approved);
+  setc("ap-c-sellers", PENDING.length); setc("ap-c-products", prods.length); setc("ap-c-services", offs.length); setc("ap-c-branding", brands.length);
   const cc = document.getElementById("apprCount");
 
   if (APPRTAB === "sellers") {
@@ -674,7 +676,7 @@ function renderApprovals() {
          <td class="row-actions"><button class="approve" onclick="toggleField('products','${p.id}','approved',true)">Approve</button>
          <button class="reject" onclick="del('products','${p.id}')">Reject</button></td></tr>`).join("")
         : `<tr><td colspan="6" class="empty">No products waiting 🎉</td></tr>`) + `</tbody></table>`;
-  } else {
+  } else if (APPRTAB === "services") {
     if (cc) cc.textContent = `· ${offs.length} pending`;
     body.innerHTML = `<table><thead><tr><th></th><th>Service</th><th>Provider</th><th>Price</th><th>MRP</th><th>Action</th></tr></thead><tbody>`
       + (offs.length ? offs.map(o =>
@@ -683,7 +685,45 @@ function renderApprovals() {
          <td class="row-actions"><button class="approve" onclick="approveOffering('${o.id}')">Approve</button>
          <button class="reject" onclick="rejectOffering('${o.id}')">Reject</button></td></tr>`).join("")
         : `<tr><td colspan="6" class="empty">No service offerings waiting 🎉</td></tr>`) + `</tbody></table>`;
+  } else {
+    if (cc) cc.textContent = `· ${brands.length} pending`;
+    body.innerHTML = `<table><thead><tr><th>Shop / Provider</th><th>Type</th><th>Preview</th><th>Action</th></tr></thead><tbody>`
+      + (brands.length ? brands.map(b =>
+        `<tr><td><b>${esc(brandTargetName(b))}</b><div class="crumb">${b.targetType || "store"}</div></td>
+         <td><span class="tag info">${brandKindLabel(b.kind)}</span></td>
+         <td>${brandPreview(b)}</td>
+         <td class="row-actions"><button class="approve" onclick="approveBranding('${b.id}')">Approve</button>
+         <button class="reject" onclick="del('branding','${b.id}')">Reject</button></td></tr>`).join("")
+        : `<tr><td colspan="4" class="empty">No branding requests waiting 🎉</td></tr>`) + `</tbody></table>`;
   }
+}
+function brandTargetName(b) { return b.targetType === "service" ? providerName(b.targetId) : storeName(b.targetId); }
+function brandKindLabel(k) { return k === "infostrip" ? "Info strip" : k === "animation" ? "Animation" : "Banner"; }
+function brandPreview(b) {
+  if (b.kind === "banner") return `${b.imageUrl ? `<img src="${esc(b.imageUrl)}" style="width:90px;height:48px;object-fit:cover;border-radius:8px">` : ""} ${esc(b.text || "")}`;
+  if (b.kind === "infostrip") return `<span style="background:${esc(b.bgColor || '#2563EB')};color:${esc(b.textColor || '#fff')};padding:3px 10px;border-radius:6px;font-size:12px">${esc(b.text || "")}</span>`;
+  return `<b>${esc(b.animation || "none")}</b>`;
+}
+async function approveBranding(id) {
+  if (!LIVE) { toast("(demo) approved", "ok"); return; }
+  try { await db.collection("branding").doc(id).update({ approved: true }); toast("Branding approved", "ok"); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+// Admin Branding page — approved branding running on seller pages.
+function renderBrandingAdmin() {
+  const el = document.getElementById("brandRows"); if (!el) return;
+  const q = filt("q-brand");
+  const list = (DATA.branding || []).filter(b => brandTargetName(b).toLowerCase().includes(q));
+  const bc = document.getElementById("brandCount"); if (bc) bc.textContent = `· ${list.length} item(s) · ${list.filter(b => b.approved).length} live`;
+  el.innerHTML = list.length ? list.map(b =>
+    `<tr><td><b>${esc(brandTargetName(b))}</b><div class="crumb">${b.targetType || "store"}</div></td>
+     <td><span class="tag info">${brandKindLabel(b.kind)}</span></td>
+     <td>${brandPreview(b)}</td>
+     <td>${b.approved ? '<span class="tag ok">Live</span>' : '<span class="tag wait">Pending</span>'}</td>
+     <td class="row-actions">
+       ${b.approved ? `<button class="mini" onclick="toggleField('branding','${b.id}','approved',false)">Disable</button>` : `<button class="approve" onclick="approveBranding('${b.id}')">Approve</button>`}
+       <button class="reject" onclick="del('branding','${b.id}')">Delete</button></td></tr>`).join("")
+    : `<tr><td colspan="5" class="empty">No branding yet.</td></tr>`;
 }
 async function toggleField(col, id, field, value) {
   if (!LIVE) { toast("(demo) updated", "ok"); return; }

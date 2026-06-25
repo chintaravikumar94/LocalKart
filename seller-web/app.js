@@ -47,22 +47,63 @@ function catOptions(type,cur){ const cs=CATS.filter(c=>(c.type||"store")===type)
 
 /* ---------- auth ---------- */
 function loginErr(m){ $("loginErr").textContent=m||""; }
-function toggleMode(){ SIGNUP=!SIGNUP; $("signupName").style.display=SIGNUP?"block":"none"; $("loginBtn").textContent=SIGNUP?"Create account":"Sign in"; $("toggleMode").textContent=SIGNUP?"Have an account? Sign in":"New seller? Create an account"; }
-async function loginGoogle(){ loginErr(""); try{ const c=await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); await afterLogin(c.user); }catch(e){ loginErr(e.message); } }
+let BUSY=false;
+function toggleMode(){ SIGNUP=!SIGNUP; $("signupExtra").style.display=SIGNUP?"block":"none"; $("loginBtn").textContent=SIGNUP?"Create account":"Sign in"; $("toggleMode").textContent=SIGNUP?"Have an account? Sign in":"New seller? Create an account"; loginErr(""); }
+async function loginGoogle(){ loginErr(""); try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }catch(e){ loginErr(e.message); } }
 async function loginEmail(){
   loginErr(""); const email=val("email"), pass=$("password").value;
   if(!email||!pass) return loginErr("Enter email and password.");
-  try{ let c; if(SIGNUP){ c=await auth.createUserWithEmailAndPassword(email,pass); await c.user.updateProfile({displayName:val("name")||email.split("@")[0]}); } else c=await auth.signInWithEmailAndPassword(email,pass); await afterLogin(c.user); }
-  catch(e){ loginErr(e.message); }
+  try{
+    if(SIGNUP){
+      const name=val("suName"), mobile=val("suMobile");
+      if(!name) return loginErr("Please enter your / business name.");
+      if(pass.length<6) return loginErr("Password must be at least 6 characters.");
+      BUSY=true;
+      const c=await auth.createUserWithEmailAndPassword(email,pass);
+      await c.user.updateProfile({displayName:name});
+      const d={name,email,phone:mobile,photoUrl:"",role:"STORE_AND_PROVIDER",address:"",createdAt:FV.serverTimestamp()};
+      await db.collection("users").doc(c.user.uid).set(d);
+      ME={uid:c.user.uid,...d}; startApp();
+    } else {
+      await auth.signInWithEmailAndPassword(email,pass);
+    }
+  }catch(e){ BUSY=false; loginErr(e.message); }
 }
-async function ensureUserDoc(u){
-  const ref=db.collection("users").doc(u.uid), snap=await ref.get();
-  if(!snap.exists){ const d={name:u.displayName||"",email:u.email||"",phone:"",photoUrl:u.photoURL||"",role:"STORE_AND_PROVIDER",address:"",createdAt:FV.serverTimestamp()}; await ref.set(d); return {uid:u.uid,...d}; }
-  return {uid:u.uid,...snap.data()};
+async function handleUser(u){
+  if(BUSY) return;
+  try{
+    const snap=await db.collection("users").doc(u.uid).get();
+    if(snap.exists){ ME={uid:u.uid,...snap.data()}; startApp(); }
+    else showProfileSetup(u);
+  }catch(e){ loginErr(e.message); }
 }
-async function afterLogin(u){ ME=await ensureUserDoc(u); startApp(); }
+function showProfileSetup(u){
+  window._gu=u;
+  const first=((u.displayName||u.email||"there").split(" ")[0]);
+  $("authBox").innerHTML=`
+    <div style="font-weight:800;font-size:17px">Welcome, ${esc(first)}! 👋</div>
+    <div class="sub" style="margin:4px 0 16px">A few details to set up your seller account.</div>
+    <input id="ps-name" placeholder="Your / business name" value="${esc(u.displayName||"")}">
+    <input id="ps-mobile" type="tel" placeholder="Mobile number">
+    <input id="ps-pass" type="password" placeholder="Create a password (min 6 chars)">
+    <button class="btn-primary" id="ps-save" onclick="completeGoogleSignup()">Create account & continue</button>
+    <div class="err" id="loginErr"></div>
+    <div class="sub" style="margin-top:10px;font-size:12px">A password lets you also sign in with email later.</div>`;
+}
+async function completeGoogleSignup(){
+  const u=window._gu; if(!u) return;
+  const name=val("ps-name"), mobile=val("ps-mobile"), pass=$("ps-pass").value||"";
+  if(!name) return loginErr("Please enter your name.");
+  const btn=$("ps-save"); if(btn){ btn.disabled=true; btn.textContent="Creating…"; }
+  try{
+    if(pass && pass.length>=6 && u.email){ try{ await u.linkWithCredential(firebase.auth.EmailAuthProvider.credential(u.email,pass)); }catch(e){} }
+    const d={name,email:u.email||"",phone:mobile,photoUrl:u.photoURL||"",role:"STORE_AND_PROVIDER",address:"",createdAt:FV.serverTimestamp()};
+    await db.collection("users").doc(u.uid).set(d,{merge:true});
+    ME={uid:u.uid,...d}; startApp();
+  }catch(e){ loginErr(e.message); if(btn){ btn.disabled=false; btn.textContent="Create account & continue"; } }
+}
 function logout(){ auth.signOut(); location.reload(); }
-auth.onAuthStateChanged(async u=>{ if(u){ try{ ME=await ensureUserDoc(u); startApp(); }catch(e){ loginErr(e.message); } } });
+auth.onAuthStateChanged(u=>{ if(u) handleUser(u); });
 function startApp(){ $("login").style.display="none"; $("app").style.display="flex"; $("meAv").textContent=(ME.name||ME.email||"S")[0].toUpperCase(); loadAll(); }
 
 /* ---------- nav ---------- */

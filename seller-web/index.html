@@ -132,14 +132,19 @@
   <div class="login-card">
     <div class="brand"><div class="logo">LK</div><h1>LocalKart Seller</h1></div>
     <p class="sub">Manage your shop & services in one place.</p>
-    <button class="btn-google" onclick="loginGoogle()"><span style="color:#4285F4;font-weight:800;font-size:16px">G</span> Continue with Google</button>
-    <div class="or">or with email</div>
-    <input id="email" type="email" placeholder="Email" />
-    <input id="password" type="password" placeholder="Password" />
-    <div id="signupName" style="display:none"><input id="name" placeholder="Your / business name" /></div>
-    <button class="btn-primary" onclick="loginEmail()" id="loginBtn">Sign in</button>
-    <div class="err" id="loginErr"></div>
-    <div class="center" style="margin-top:8px"><span class="link" id="toggleMode" onclick="toggleMode()">New seller? Create an account</span></div>
+    <div id="authBox">
+      <button class="btn-google" onclick="loginGoogle()"><span style="color:#4285F4;font-weight:800;font-size:16px">G</span> Continue with Google</button>
+      <div class="or">or with email</div>
+      <div id="signupExtra" style="display:none">
+        <input id="suName" placeholder="Your / business name" />
+        <input id="suMobile" type="tel" placeholder="Mobile number" />
+      </div>
+      <input id="email" type="email" placeholder="Email" />
+      <input id="password" type="password" placeholder="Password" />
+      <button class="btn-primary" onclick="loginEmail()" id="loginBtn">Sign in</button>
+      <div class="err" id="loginErr"></div>
+      <div class="center" style="margin-top:8px"><span class="link" id="toggleMode" onclick="toggleMode()">New seller? Create an account</span></div>
+    </div>
   </div>
 </div>
 
@@ -187,6 +192,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

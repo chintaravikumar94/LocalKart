@@ -222,12 +222,19 @@ function render() {
     (TAB.catalog === "all" || c.type === TAB.catalog) &&
     (qcat === "" || (c.name || "").toLowerCase().includes(qcat) || (c.category || "").toLowerCase().includes(qcat)));
   const cc = document.getElementById("catalogCount"); if (cc) cc.textContent = `· ${catRows.length} item(s)`;
-  document.getElementById("catalogRows").innerHTML = catRows.map(c =>
-    `<tr><td>${img(c.imageUrl)}</td><td>${c.name}</td>
+  document.getElementById("catalogRows").innerHTML = catRows.map(c => {
+    const sl = catalogSellersOf(c), live = sl.filter(x => x.approved).length;
+    const prices = sl.map(x => x.price).filter(n => n > 0);
+    const range = prices.length ? (Math.min(...prices) === Math.max(...prices) ? money(prices[0]) : `${money(Math.min(...prices))}–${money(Math.max(...prices))}`) : "—";
+    const sellersCell = sl.length
+      ? `<b>${sl.length}</b> seller(s)<div class="crumb">${range}${live < sl.length ? ` · ${live} live` : ""}</div><button class="mini" onclick="catalogSellers('${c.id}')">View prices</button>`
+      : `<span class="crumb">No sellers yet</span>`;
+    return `<tr><td>${img(c.imageUrl)}</td><td>${c.name}</td>
      <td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type}</span></td><td>${c.category ? catLabel(c.category) : "-"}</td>
      <td>${c.unit || "-"}</td><td>${c.suggestedMrp ? money(c.suggestedMrp) : "-"}</td>
+     <td>${sellersCell}</td>
      <td class="row-actions"><button class="mini" onclick="editCatalogItem('${c.id}')">Edit</button>
-     <button class="reject" onclick="del('catalog','${c.id}')">Delete</button></td></tr>`).join("") || empty(7);
+     <button class="reject" onclick="del('catalog','${c.id}')">Delete</button></td></tr>`; }).join("") || empty(8);
 
   const catList = (D.categories || []).filter(c => tabKeepType(TAB.categories, c.type || "store"));
   const ctc = document.getElementById("catCount"); if (ctc) ctc.textContent = `· ${catList.length} categor${catList.length === 1 ? "y" : "ies"}`;
@@ -900,6 +907,31 @@ async function fillCatalogImages() {
     await batch.commit();
     toast(`Added images to ${missing.length} item(s)`, "ok"); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+// Seller listings (products / service offerings) that were created from a catalog item.
+function catalogSellersOf(c) {
+  if (!c) return [];
+  return c.type === "service"
+    ? (DATA.offerings || []).filter(o => o.catalogId === c.id)
+    : (DATA.products || []).filter(p => p.catalogId === c.id);
+}
+// Show every shop/provider selling a catalog item and their charge.
+function catalogSellers(id) {
+  const c = (DATA.catalog || []).find(x => x.id === id); if (!c) return;
+  const isSvc = c.type === "service";
+  const sl = catalogSellersOf(c).slice().sort((a, b) => (a.price || 0) - (b.price || 0));
+  const nameOf = x => isSvc ? providerName(x.providerId) : storeName(x.storeId);
+  const rows = sl.length ? sl.map(x => {
+    const save = (x.mrp > x.price) ? `<span style="color:var(--green)">${Math.round((x.mrp - x.price) / x.mrp * 100)}% off</span>` : "-";
+    return `<tr><td><b>${esc(nameOf(x))}</b></td><td>${money(x.price)}</td><td>${x.mrp ? money(x.mrp) : "-"}</td><td>${save}</td>
+      <td>${x.approved ? '<span class="tag ok">Live</span>' : '<span class="tag wait">Pending</span>'}</td></tr>`;
+  }).join("") : `<tr><td colspan="5" class="empty">No ${isSvc ? "providers" : "shops"} are selling this yet.</td></tr>`;
+  const prices = sl.map(x => x.price).filter(n => n > 0);
+  const summary = prices.length ? `${sl.length} ${isSvc ? "provider" : "shop"}(s) · ${money(Math.min(...prices))}–${money(Math.max(...prices))}` : "No sellers yet";
+  modal(`<h3>Who's selling: ${esc(c.name)}</h3>
+    <p class="crumb">${catLabel(c.category)} · ${isSvc ? "Service" : "Product"} · ${summary}</p>
+    <table style="margin-top:10px"><thead><tr><th>${isSvc ? "Provider" : "Shop"}</th><th>Selling price</th><th>MRP</th><th>Discount</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Close</button></div>`);
 }
 let editCatalogId = null;
 function editCatalogItem(id) { openCatalogItem((DATA.catalog || []).find(x => x.id === id)); }

@@ -59,12 +59,13 @@ function matchText(s,q){ return !q || ((s.name||"")+" "+(s.category||"")+" "+(s.
 
 /* ---------- auth ---------- */
 function loginErr(m){ $("loginErr").textContent=m||""; }
-let BUSY=false;  // guards onAuthStateChanged re-entry during email signup
+let BUSY=false, freshLogin=false;  // freshLogin: true only on an explicit sign-in (not refresh/restore)
 function toggleMode(){ SIGNUP=!SIGNUP; $("signupExtra").style.display=SIGNUP?"block":"none"; $("loginBtn").textContent=SIGNUP?"Create account":"Sign in"; $("toggleMode").textContent=SIGNUP?"Have an account? Sign in":"New here? Create an account"; loginErr(""); }
-async function loginGoogle(){ loginErr(""); try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }catch(e){ loginErr(e.message); } }
+async function loginGoogle(){ loginErr(""); freshLogin=true; try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }catch(e){ freshLogin=false; loginErr(e.message); } }
 async function loginEmail(){
   loginErr(""); const email=$("email").value.trim(), pass=$("password").value;
   if(!email||!pass) return loginErr("Enter email and password.");
+  freshLogin=true;
   try{
     if(SIGNUP){
       const name=($("suName")?.value||"").trim(), mobile=($("suMobile")?.value||"").trim();
@@ -86,7 +87,7 @@ async function handleUser(u){
   if(BUSY) return;
   try{
     const snap=await db.collection("users").doc(u.uid).get();
-    if(snap.exists){ ME={uid:u.uid,...snap.data()}; if(needsPassword()) showSetPassword(); else startApp(); }
+    if(snap.exists){ ME={uid:u.uid,...snap.data()}; if(freshLogin && needsPassword()) showSetPassword(); else startApp(); }
     else showProfileSetup(u);
   }catch(e){ loginErr(e.message); }
 }
@@ -150,11 +151,16 @@ function startApp(){
   $("locLabel").textContent=LOC?.label || "Set location";
   cartBadge();
   loadAll();
+  restoreView();   // open the same page after a refresh
 }
+// Restore the last view from the URL hash (so refresh stays on the same page).
+const SAFE_VIEWS=["home","stores","services","orders","bookings","chat","notifications","account","cart"];
+function restoreView(){ const v=(location.hash||"").replace("#",""); go(SAFE_VIEWS.includes(v)?v:"home"); }
 
 /* ---------- nav ---------- */
 $("tabs").addEventListener("click",e=>{ const a=e.target.closest("a"); if(a) go(a.dataset.view); });
 function go(view){
+  try{ if(location.hash!=="#"+view) history.replaceState(null,"","#"+view); }catch(e){}
   document.querySelectorAll("#tabs a").forEach(x=>x.classList.toggle("active",x.dataset.view===view));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("view-"+view).classList.add("active");

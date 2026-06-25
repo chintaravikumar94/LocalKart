@@ -47,12 +47,13 @@ function catOptions(type,cur){ const cs=CATS.filter(c=>(c.type||"store")===type)
 
 /* ---------- auth ---------- */
 function loginErr(m){ $("loginErr").textContent=m||""; }
-let BUSY=false;
+let BUSY=false, freshLogin=false;
 function toggleMode(){ SIGNUP=!SIGNUP; $("signupExtra").style.display=SIGNUP?"block":"none"; $("loginBtn").textContent=SIGNUP?"Create account":"Sign in"; $("toggleMode").textContent=SIGNUP?"Have an account? Sign in":"New seller? Create an account"; loginErr(""); }
-async function loginGoogle(){ loginErr(""); try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }catch(e){ loginErr(e.message); } }
+async function loginGoogle(){ loginErr(""); freshLogin=true; try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }catch(e){ freshLogin=false; loginErr(e.message); } }
 async function loginEmail(){
   loginErr(""); const email=val("email"), pass=$("password").value;
   if(!email||!pass) return loginErr("Enter email and password.");
+  freshLogin=true;
   try{
     if(SIGNUP){
       const name=val("suName"), mobile=val("suMobile");
@@ -73,7 +74,7 @@ async function handleUser(u){
   if(BUSY) return;
   try{
     const snap=await db.collection("users").doc(u.uid).get();
-    if(snap.exists){ ME={uid:u.uid,...snap.data()}; if(needsPassword()) showSetPassword(); else startApp(); }
+    if(snap.exists){ ME={uid:u.uid,...snap.data()}; if(freshLogin && needsPassword()) showSetPassword(); else startApp(); }
     else showProfileSetup(u);
   }catch(e){ loginErr(e.message); }
 }
@@ -124,11 +125,14 @@ async function completeGoogleSignup(){
 }
 function logout(){ auth.signOut(); location.reload(); }
 auth.onAuthStateChanged(u=>{ if(u) handleUser(u); });
-function startApp(){ $("login").style.display="none"; $("app").style.display="flex"; $("meAv").textContent=(ME.name||ME.email||"S")[0].toUpperCase(); loadAll(); }
+function startApp(){ $("login").style.display="none"; $("app").style.display="flex"; $("meAv").textContent=(ME.name||ME.email||"S")[0].toUpperCase(); loadAll(); restoreView(); }
+const SAFE_VIEWS=["dashboard","shop","services","products","orders","bookings","chat","billing","branding","account"];
+function restoreView(){ const v=(location.hash||"").replace("#",""); go(SAFE_VIEWS.includes(v)?v:"dashboard"); }
 
 /* ---------- nav ---------- */
 $("tabs").addEventListener("click",e=>{ const a=e.target.closest("a"); if(a) go(a.dataset.view); });
 function go(view){
+  try{ if(location.hash!=="#"+view) history.replaceState(null,"","#"+view); }catch(e){}
   document.querySelectorAll("#tabs a").forEach(x=>x.classList.toggle("active",x.dataset.view===view));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active")); $("view-"+view).classList.add("active");
   if(chatUnsub && view!=="chat"){ chatUnsub(); chatUnsub=null; } window.scrollTo(0,0);

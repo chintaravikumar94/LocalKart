@@ -206,7 +206,13 @@
       <div class="toolbar">
         <input id="q-catalog" placeholder="Search catalog…" oninput="render()">
       </div>
-      <div class="panel"><h3>Master Catalog <span id="catalogCount" class="crumb"></span> <button class="add" onclick="openCatalogItem()">＋ Add item</button></h3>
+      <div class="panel"><h3>Master Catalog <span id="catalogCount" class="crumb"></span>
+        <span>
+          <button class="ghost" onclick="seedDefaultCatalog('product')" style="margin-right:6px">Load product defaults</button>
+          <button class="ghost" onclick="seedDefaultCatalog('service')" style="margin-right:6px">Load service defaults</button>
+          <button class="ghost" onclick="seedDefaultCatalog()" style="margin-right:8px">Load all</button>
+          <button class="add" onclick="openCatalogItem()">＋ Add item</button>
+        </span></h3>
         <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Company-defined items. Sellers pick from these and set their own price.</div>
         <table><thead><tr><th></th><th>Name</th><th>Type</th><th>Category</th><th>Unit</th><th>Suggested MRP</th><th>Action</th></tr></thead><tbody id="catalogRows"></tbody></table></div></section>
 
@@ -326,6 +332,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=23"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>

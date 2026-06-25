@@ -725,6 +725,92 @@ async function seedDefaultCategories(kind) {
 }
 
 /* ---------- master catalog ---------- */
+// Default company catalog — sellers pick from these and set their own price.
+const DEFAULT_PRODUCTS = [
+  { name: "Rice 5kg", category: "groceries", unit: "5 kg", mrp: 360 },
+  { name: "Wheat Atta 5kg", category: "groceries", unit: "5 kg", mrp: 280 },
+  { name: "Sugar 1kg", category: "groceries", unit: "1 kg", mrp: 50 },
+  { name: "Toor Dal 1kg", category: "groceries", unit: "1 kg", mrp: 160 },
+  { name: "Cooking Oil 1L", category: "groceries", unit: "1 L", mrp: 150 },
+  { name: "Salt 1kg", category: "groceries", unit: "1 kg", mrp: 28 },
+  { name: "Tea Powder 250g", category: "groceries", unit: "250 g", mrp: 140 },
+  { name: "Onion 1kg", category: "vegetables_fruits", unit: "1 kg", mrp: 40 },
+  { name: "Tomato 1kg", category: "vegetables_fruits", unit: "1 kg", mrp: 35 },
+  { name: "Potato 1kg", category: "vegetables_fruits", unit: "1 kg", mrp: 30 },
+  { name: "Banana (dozen)", category: "vegetables_fruits", unit: "12 pcs", mrp: 60 },
+  { name: "Apple 1kg", category: "vegetables_fruits", unit: "1 kg", mrp: 180 },
+  { name: "Milk 1L", category: "dairy", unit: "1 L", mrp: 60 },
+  { name: "Curd 500g", category: "dairy", unit: "500 g", mrp: 40 },
+  { name: "Paneer 200g", category: "dairy", unit: "200 g", mrp: 90 },
+  { name: "Eggs (6 pcs)", category: "dairy", unit: "6 pcs", mrp: 48 },
+  { name: "Bread", category: "bakery", unit: "400 g", mrp: 45 },
+  { name: "Biscuits Pack", category: "bakery", unit: "pack", mrp: 30 },
+  { name: "Phone Charger", category: "mobile_accessories", unit: "1 pc", mrp: 399 },
+  { name: "Earphones", category: "mobile_accessories", unit: "1 pc", mrp: 499 },
+  { name: "Tempered Glass", category: "mobile_accessories", unit: "1 pc", mrp: 199 },
+  { name: "Power Bank 10000mAh", category: "mobile_accessories", unit: "1 pc", mrp: 1299 },
+  { name: "A4 Paper Ream", category: "stationery", unit: "500 sheets", mrp: 320 },
+  { name: "Notebook 200 pages", category: "stationery", unit: "1 pc", mrp: 60 },
+  { name: "Pen (pack of 10)", category: "stationery", unit: "10 pcs", mrp: 100 },
+  { name: "Paracetamol Strip", category: "medical_pharmacy", unit: "10 tablets", mrp: 30 },
+  { name: "Hand Sanitizer 200ml", category: "medical_pharmacy", unit: "200 ml", mrp: 90 },
+  { name: "Detergent Powder 1kg", category: "household", unit: "1 kg", mrp: 120 },
+  { name: "Dishwash Liquid 500ml", category: "household", unit: "500 ml", mrp: 99 },
+  { name: "Floor Cleaner 1L", category: "household", unit: "1 L", mrp: 110 },
+  { name: "LED Bulb 9W", category: "electronics", unit: "1 pc", mrp: 110 }
+];
+const DEFAULT_SERVICES = [
+  { name: "Tap / Faucet Repair", category: "plumber", unit: "per visit", mrp: 300 },
+  { name: "Pipe Leakage Fix", category: "plumber", unit: "per visit", mrp: 400 },
+  { name: "Bathroom Fitting", category: "plumber", unit: "per job", mrp: 800 },
+  { name: "Water Motor Installation", category: "plumber", unit: "per job", mrp: 600 },
+  { name: "Switchboard Repair", category: "electrician", unit: "per visit", mrp: 250 },
+  { name: "Fan Installation", category: "electrician", unit: "per fan", mrp: 200 },
+  { name: "House Wiring Check", category: "electrician", unit: "per visit", mrp: 350 },
+  { name: "Inverter Installation", category: "electrician", unit: "per job", mrp: 700 },
+  { name: "Furniture Repair", category: "carpenter", unit: "per visit", mrp: 500 },
+  { name: "Door Fitting", category: "carpenter", unit: "per door", mrp: 600 },
+  { name: "One Room Painting", category: "painter", unit: "per room", mrp: 2500 },
+  { name: "Full House Painting", category: "painter", unit: "on visit", mrp: 12000 },
+  { name: "AC General Service", category: "ac_repair", unit: "per AC", mrp: 499 },
+  { name: "AC Gas Refill", category: "ac_repair", unit: "per AC", mrp: 1800 },
+  { name: "AC Installation", category: "ac_repair", unit: "per AC", mrp: 1200 },
+  { name: "Washing Machine Repair", category: "appliance_repair", unit: "per visit", mrp: 400 },
+  { name: "Refrigerator Repair", category: "appliance_repair", unit: "per visit", mrp: 450 },
+  { name: "TV Repair", category: "appliance_repair", unit: "per visit", mrp: 400 },
+  { name: "General Pest Control", category: "pest_control", unit: "1 BHK", mrp: 1200 },
+  { name: "Termite Treatment", category: "pest_control", unit: "on visit", mrp: 2500 },
+  { name: "Home Deep Cleaning", category: "housekeeping", unit: "1 BHK", mrp: 1999 },
+  { name: "Bathroom Cleaning", category: "housekeeping", unit: "per bathroom", mrp: 399 },
+  { name: "Sofa Cleaning", category: "housekeeping", unit: "per seat", mrp: 150 },
+  { name: "Daily Cook Visit", category: "cook", unit: "per month", mrp: 4000 },
+  { name: "Party Cooking", category: "cook", unit: "per event", mrp: 3000 },
+  { name: "Haircut at Home", category: "salon_spa", unit: "per person", mrp: 200 },
+  { name: "Facial at Home", category: "salon_spa", unit: "per session", mrp: 600 },
+  { name: "Car Wash", category: "car_wash", unit: "per car", mrp: 300 },
+  { name: "Home Tuition", category: "tutor", unit: "per hour", mrp: 300 },
+  { name: "Event Photography", category: "photographer", unit: "per day", mrp: 8000 }
+];
+async function seedDefaultCatalog(kind) {
+  if (!LIVE) { toast("(demo) loaded", "ok"); return; }
+  try {
+    const have = new Set((DATA.catalog || []).map(c => (c.name || "") + "|" + (c.type || "")));
+    let batch = db.batch(), n = 0;
+    const add = (list, type) => list.forEach(it => {
+      if (!have.has(it.name + "|" + type)) {
+        batch.set(db.collection("catalog").doc(), {
+          name: it.name, type, category: it.category, imageUrl: "",
+          description: "", suggestedMrp: it.mrp || 0, unit: it.unit || ""
+        });
+        n++;
+      }
+    });
+    if (kind !== "service") add(DEFAULT_PRODUCTS, "product");
+    if (kind !== "product") add(DEFAULT_SERVICES, "service");
+    if (n) await batch.commit();
+    toast(n ? `Added ${n} default catalog items` : "Already up to date", "ok"); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); }
+}
 let editCatalogId = null;
 function editCatalogItem(id) { openCatalogItem((DATA.catalog || []).find(x => x.id === id)); }
 function openCatalogItem(c) {

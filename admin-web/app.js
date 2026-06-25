@@ -54,7 +54,7 @@ applyTheme((() => { try { return localStorage.getItem("lk-theme"); } catch (e) {
 /* ---------- helpers ---------- */
 function toast(msg, kind) { const t = document.createElement("div"); t.className = "toast " + (kind || ""); t.textContent = msg; document.getElementById("toast").appendChild(t); setTimeout(() => t.remove(), 3200); }
 function modal(html) { document.getElementById("modalBox").innerHTML = html; document.getElementById("modalBg").classList.add("open"); }
-function closeModal() { document.getElementById("modalBg").classList.remove("open"); }
+function closeModal() { document.getElementById("modalBg").classList.remove("open"); if (_renderDirty) { _renderDirty = false; render(); } }
 document.getElementById("modalBg").addEventListener("click", e => { if (e.target.id === "modalBg") closeModal(); });
 function opt(v, label, cur) { return `<option value="${v}" ${v === cur ? "selected" : ""}>${label}</option>`; }
 /** Pretty, capitalised label for a stored category key (value stays untouched). */
@@ -159,19 +159,48 @@ async function fetchCol(name, fb) {
 }
 async function loadBannerSettings() { if (!LIVE) return; try { const d = await db.collection("settings").doc("banners").get(); if (d.exists) BSETTINGS = { ...BSETTINGS, ...d.data() }; } catch (e) {} }
 
+function recomputePending() {
+  PENDING = [...(DATA.stores || []).filter(x => !x.approved).map(x => ({ ...x, _col: "stores" })),
+             ...(DATA.services || []).filter(x => !x.approved).map(x => ({ ...x, _col: "services" }))];
+}
+// Debounced re-render that never disrupts an open dialog.
+let _renderTimer = null, _renderDirty = false;
+function scheduleRender() {
+  clearTimeout(_renderTimer);
+  _renderTimer = setTimeout(() => {
+    if (document.getElementById("modalBg").classList.contains("open")) { _renderDirty = true; return; }
+    render();
+  }, 200);
+}
+
+let _subscribed = false;
 async function loadAll() {
-  const [stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings] = await Promise.all([
-    fetchCol("stores", DEMO.stores), fetchCol("services", DEMO.services), fetchCol("products", DEMO.products),
-    fetchCol("orders", DEMO.orders), fetchCol("bookings", DEMO.bookings), fetchCol("appointments", DEMO.appointments),
-    fetchCol("serviceRequests", DEMO.serviceRequests), fetchCol("reviews", DEMO.reviews), fetchCol("users", DEMO.users),
-    fetchCol("admins", DEMO.admins), fetchCol("categories", DEMO.categories), fetchCol("growItems", DEMO.growItems), fetchCol("banners", DEMO.banners),
-    fetchCol("catalog", []), fetchCol("serviceOfferings", [])
-  ]);
-  const [plans, billing, payments] = await Promise.all([fetchCol("plans", []), fetchCol("billing", []), fetchCol("payments", [])]);
-  await loadBannerSettings();
-  Object.assign(DATA, { stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings, plans, billing, payments });
-  PENDING = [...stores.filter(x => !x.approved).map(x => ({ ...x, _col: "stores" })), ...services.filter(x => !x.approved).map(x => ({ ...x, _col: "services" }))];
-  render();
+  if (!LIVE) { // demo mode — one-time load
+    const [stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings] = await Promise.all([
+      fetchCol("stores", DEMO.stores), fetchCol("services", DEMO.services), fetchCol("products", DEMO.products),
+      fetchCol("orders", DEMO.orders), fetchCol("bookings", DEMO.bookings), fetchCol("appointments", DEMO.appointments),
+      fetchCol("serviceRequests", DEMO.serviceRequests), fetchCol("reviews", DEMO.reviews), fetchCol("users", DEMO.users),
+      fetchCol("admins", DEMO.admins), fetchCol("categories", DEMO.categories), fetchCol("growItems", DEMO.growItems), fetchCol("banners", DEMO.banners),
+      fetchCol("catalog", []), fetchCol("serviceOfferings", [])
+    ]);
+    const [plans, billing, payments] = await Promise.all([fetchCol("plans", []), fetchCol("billing", []), fetchCol("payments", [])]);
+    Object.assign(DATA, { stores, services, products, orders, bookings, appointments, serviceRequests, reviews, users, admins, categories, grow, banners, catalog, offerings, plans, billing, payments });
+    recomputePending(); render(); return;
+  }
+  if (_subscribed) { render(); return; }  // already live
+  _subscribed = true;
+  loadBannerSettings();
+  // collection name → DATA key
+  const subs = [["stores","stores"],["services","services"],["products","products"],["orders","orders"],
+    ["bookings","bookings"],["appointments","appointments"],["serviceRequests","serviceRequests"],["reviews","reviews"],
+    ["users","users"],["admins","admins"],["categories","categories"],["growItems","grow"],["banners","banners"],
+    ["catalog","catalog"],["serviceOfferings","offerings"],["plans","plans"],["billing","billing"],["payments","payments"]];
+  subs.forEach(([col, key]) => {
+    db.collection(col).limit(1000).onSnapshot(
+      s => { DATA[key] = s.docs.map(d => ({ id: d.id, ...d.data() })); recomputePending(); scheduleRender(); },
+      e => console.warn("live " + col, e.message)
+    );
+  });
 }
 
 /* ---------- render ---------- */

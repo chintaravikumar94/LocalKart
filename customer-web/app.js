@@ -30,7 +30,7 @@ applyTheme((()=>{try{return localStorage.getItem("lk-theme")}catch(e){return nul
 const $ = id => document.getElementById(id);
 function toast(m,k){ const t=document.createElement("div"); t.className="toast "+(k||""); t.textContent=m; $("toast").appendChild(t); setTimeout(()=>t.remove(),3000); }
 function modal(html){ $("modalBox").innerHTML=html; $("modalBg").classList.add("open"); }
-function closeModal(){ $("modalBg").classList.remove("open"); }
+function closeModal(){ $("modalBg").classList.remove("open"); if(cDirty){ cDirty=false; rerenderActive(); } }
 $("modalBg").addEventListener("click",e=>{ if(e.target.id==="modalBg") closeModal(); });
 const num = n => (n||0).toLocaleString("en-IN");
 const money = n => "₹"+num(Math.round(n||0));
@@ -103,21 +103,22 @@ function go(view){
 }
 
 /* ---------- data ---------- */
+let _liveC=false, cTimer=null, cDirty=false;
+function modalOpen(){ return $("modalBg").classList.contains("open"); }
+function rerenderActive(){
+  const v=(document.querySelector(".view.active")?.id||"view-home").replace("view-","");
+  if(["detail","chat","cart"].includes(v)) return;   // don't disturb open shop/chat/cart
+  ({home:renderHome,stores:renderStores,services:renderServices,orders:renderOrders,bookings:renderBookings,notifications:renderNotifications,account:renderAccount,search:onSearch}[v]||(()=>{}))();
+}
+function liveRender(){ clearTimeout(cTimer); cTimer=setTimeout(()=>{ if(modalOpen()){ cDirty=true; return; } rerenderActive(); },250); }
 async function loadAll(){
-  try{
-    const [st,sv,cat,bn] = await Promise.all([
-      db.collection("stores").where("approved","==",true).get(),
-      db.collection("services").where("approved","==",true).get(),
-      db.collection("categories").get(),
-      db.collection("banners").where("active","==",true).get()
-    ]);
-    DATA.stores = st.docs.map(d=>({id:d.id,...d.data()}));
-    DATA.services = sv.docs.map(d=>({id:d.id,...d.data()}));
-    DATA.categories = cat.docs.map(d=>({id:d.id,...d.data()}));
-    DATA.banners = bn.docs.map(d=>({id:d.id,...d.data()})).filter(b=>["customer","both"].includes(b.audience||"customer")).sort((a,b)=>(a.order||0)-(b.order||0));
-  }catch(e){ toast("Load failed: "+e.message,"bad"); }
-  loadNotifBadge();
-  renderHome();
+  if(_liveC){ renderHome(); return; }
+  _liveC=true;
+  db.collection("stores").where("approved","==",true).onSnapshot(s=>{ DATA.stores=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },e=>console.warn("stores",e.message));
+  db.collection("services").where("approved","==",true).onSnapshot(s=>{ DATA.services=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },e=>console.warn("services",e.message));
+  db.collection("categories").onSnapshot(s=>{ DATA.categories=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },e=>{});
+  db.collection("banners").where("active","==",true).onSnapshot(s=>{ DATA.banners=s.docs.map(d=>({id:d.id,...d.data()})).filter(b=>["customer","both"].includes(b.audience||"customer")).sort((a,b)=>(a.order||0)-(b.order||0)); liveRender(); },e=>{});
+  db.collection("notifications").where("toUid","==",ME.uid).onSnapshot(()=>loadNotifBadge(),e=>{});
 }
 
 /* ---------- home ---------- */

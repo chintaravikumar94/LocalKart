@@ -27,7 +27,7 @@ const $ = id => document.getElementById(id);
 function toast(m,k){ const t=document.createElement("div"); t.className="toast "+(k||""); t.textContent=m; $("toast").appendChild(t); setTimeout(()=>t.remove(),3000); }
 function modal(html){ $("modalBox").classList.remove("wide"); $("modalBox").innerHTML=html; $("modalBg").classList.add("open"); }
 function modalWide(html){ $("modalBox").classList.add("wide"); $("modalBox").innerHTML=html; $("modalBg").classList.add("open"); }
-function closeModal(){ $("modalBg").classList.remove("open"); $("modalBox").classList.remove("wide"); }
+function closeModal(){ $("modalBg").classList.remove("open"); $("modalBox").classList.remove("wide"); if(refreshDirty){ refreshDirty=false; rerenderActive(); } }
 $("modalBg").addEventListener("click",e=>{ if(e.target.id==="modalBg") closeModal(); });
 const num = n => (n||0).toLocaleString("en-IN");
 const money = n => "₹"+num(Math.round(n||0));
@@ -100,6 +100,40 @@ async function loadAll(){
   $("bizName").textContent = MY.stores[0]?.name || MY.services[0]?.name || ME.name || "Your business";
   loadNotifBadge();
   renderDashboard();
+  subscribeLive();
+}
+
+/* ---------- realtime ---------- */
+let _live=false, scopedSubs=[], refreshTimer=null, refreshDirty=false;
+function modalOpen(){ return $("modalBg").classList.contains("open"); }
+function rerenderActive(){
+  $("bizName").textContent = MY.stores[0]?.name || MY.services[0]?.name || ME.name || "Your business";
+  const v=(document.querySelector(".view.active")?.id||"view-dashboard").replace("view-","");
+  if(v==="chat") return;   // chat has its own live listener; don't disturb it
+  ({dashboard:renderDashboard,shop:renderShop,services:renderServices,products:renderProducts,orders:renderOrders,bookings:renderBookings,billing:renderBilling,notifications:renderNotifications,account:renderAccount}[v]||(()=>{}))();
+}
+function liveRender(){ clearTimeout(refreshTimer); refreshTimer=setTimeout(()=>{ if(modalOpen()){ refreshDirty=true; return; } rerenderActive(); },200); }
+function rebuildScoped(){
+  scopedSubs.forEach(u=>{ try{u();}catch(e){} }); scopedSubs=[];
+  const storeIds=MY.stores.map(s=>s.id).slice(0,10), svcIds=MY.services.map(s=>s.id).slice(0,10);
+  const ids=storeIds.concat(svcIds).slice(0,10);
+  const watch=(col,field,arr,key)=>{ if(!arr.length){ MY[key]=[]; return; }
+    scopedSubs.push(db.collection(col).where(field,"in",arr).onSnapshot(s=>{ MY[key]=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); }, e=>console.warn(col,e.message))); };
+  watch("products","storeId",storeIds,"products");
+  watch("orders","storeId",storeIds,"orders");
+  watch("bookings","providerId",svcIds,"bookings");
+  watch("serviceRequests","providerId",svcIds,"requests");
+  watch("appointments","storeOrProviderId",ids,"appointments");
+}
+function subscribeLive(){
+  if(_live || !ME) return; _live=true;
+  db.collection("stores").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.stores=s.docs.map(d=>({id:d.id,...d.data()})); rebuildScoped(); liveRender(); },e=>console.warn("stores",e.message));
+  db.collection("services").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.services=s.docs.map(d=>({id:d.id,...d.data()})); rebuildScoped(); liveRender(); },e=>console.warn("services",e.message));
+  db.collection("serviceOfferings").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.offerings=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },e=>console.warn("offerings",e.message));
+  db.collection("billing").doc(ME.uid).onSnapshot(d=>{ BILLING=d.exists?d.data():{}; liveRender(); },e=>console.warn("billing",e.message));
+  db.collection("plans").onSnapshot(s=>{ PLANS=s.docs.map(d=>({id:d.id,...d.data()})); },e=>{});
+  db.collection("categories").onSnapshot(s=>{ CATS=s.docs.map(d=>({id:d.id,...d.data()})); },e=>{});
+  db.collection("notifications").where("toUid","==",ME.uid).onSnapshot(()=>loadNotifBadge(),e=>{});
 }
 
 /* ---------- billing status ---------- */

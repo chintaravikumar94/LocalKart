@@ -184,12 +184,13 @@
 
     <section class="view" id="view-approvals">
       <div class="tabs">
-        <button class="tab on" onclick="setTab('approvals','all',this)">All</button>
-        <button class="tab" onclick="setTab('approvals','store',this)">Stores</button>
-        <button class="tab" onclick="setTab('approvals','service',this)">Services</button>
+        <button class="tab on" id="aptab-sellers" onclick="setApprTab('sellers',this)">🏪 New sellers <span id="ap-c-sellers" class="count"></span></button>
+        <button class="tab" id="aptab-products" onclick="setApprTab('products',this)">📦 Products <span id="ap-c-products" class="count"></span></button>
+        <button class="tab" id="aptab-services" onclick="setApprTab('services',this)">🛠️ Service offerings <span id="ap-c-services" class="count"></span></button>
       </div>
-      <div class="panel"><h3>Pending approvals</h3>
-      <table><thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Area</th><th>Action</th></tr></thead><tbody id="approvalRows"></tbody></table></div></section>
+      <div class="panel"><h3>Pending approvals <span id="apprCount" class="crumb"></span></h3>
+        <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Review and publish what sellers submit. Approving makes it visible to customers; rejecting removes it.</div>
+        <div id="approvalBody"></div></div></section>
 
     <section class="view" id="view-stores"><div class="toolbar"><input id="q-stores" placeholder="Search stores by name or ID…" oninput="render()"></div>
       <div class="panel"><h3>Stores <span id="storeCount" class="crumb"></span></h3><table><thead><tr><th></th><th>ID</th><th>Name</th><th>Category</th><th>Rating</th><th>Open</th><th>Status</th><th>Actions</th></tr></thead><tbody id="storeRows"></tbody></table></div></section>
@@ -333,6 +334,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>

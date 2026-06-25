@@ -194,18 +194,15 @@ function render() {
   document.getElementById("k-pending").textContent = num(PENDING.length);
   document.getElementById("k-orders").textContent = num((D.orders || []).length);
   document.getElementById("k-revenue").textContent = money(revenue);
-  document.getElementById("badge-pending").textContent = PENDING.length || "";
+  const pendProducts = (D.products || []).filter(p => !p.approved).length;
+  const pendOfferings = (D.offerings || []).filter(o => !o.approved).length;
+  document.getElementById("badge-pending").textContent = (PENDING.length + pendProducts + pendOfferings) || "";
 
   const svcNames = new Set((D.services || []).map(s => s.name));
   document.getElementById("recent").innerHTML = [...(D.stores || []), ...(D.services || [])].slice(0, 7).map(s =>
     `<tr><td>${s.name}</td><td>${svcNames.has(s.name) ? "Service" : "Store"}</td><td>${s.category || "-"}</td><td>${star(s.rating)}</td><td>${tag(s.approved)}</td></tr>`).join("") || empty(5);
 
-  const pend = PENDING.filter(p => TAB.approvals === "all" || (TAB.approvals === "store" && p._col === "stores") || (TAB.approvals === "service" && p._col === "services"));
-  document.getElementById("approvalRows").innerHTML = pend.length ? pend.map((p, i) =>
-    `<tr><td>${p.name}</td><td>${p._col === "services" ? "Service" : "Store"}</td><td>${p.category || "-"}</td><td>${p.address || "-"}</td>
-     <td class="row-actions"><button class="approve" onclick="setApprovalById('${p._col}','${p.id}',true)">Approve</button>
-     <button class="reject" onclick="setApprovalById('${p._col}','${p.id}',false)">Reject</button></td></tr>`).join("")
-    : `<tr><td colspan="5" class="empty">No pending approvals 🎉</td></tr>`;
+  renderApprovals();
 
   renderListing("stores", "storeRows", "q-stores", "isOpen", "Open", "Closed");
   renderListing("services", "svcRows", "q-svc", "available", "Yes", "No");
@@ -607,6 +604,64 @@ function drawCharts() {
 
 /* ---------- generic actions ---------- */
 async function setApprovalById(col, id, approved) { return toggleField(col, id, "approved", approved); }
+
+/* ---------- unified approvals (sellers / products / service offerings) ---------- */
+let APPRTAB = "sellers";
+function setApprTab(k, el) {
+  APPRTAB = k;
+  if (el) { el.parentElement.querySelectorAll(".tab").forEach(b => b.classList.remove("on")); el.classList.add("on"); }
+  renderApprovals();
+}
+function storeName(id) { const s = (DATA.stores || []).find(x => x.id === id); return s ? s.name : "—"; }
+function providerName(id) { const s = (DATA.services || []).find(x => x.id === id); return s ? s.name : "—"; }
+async function approveOffering(id) {
+  if (!LIVE) { toast("(demo) approved", "ok"); return; }
+  try { await db.collection("serviceOfferings").doc(id).update({ approved: true }); toast("Service approved", "ok"); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+async function rejectOffering(id) {
+  if (!confirm("Reject and remove this service offering?")) return;
+  if (!LIVE) { toast("(demo) rejected", "ok"); return; }
+  try { await db.collection("serviceOfferings").doc(id).delete(); toast("Service rejected", "ok"); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+function renderApprovals() {
+  const body = document.getElementById("approvalBody"); if (!body) return;
+  const prods = (DATA.products || []).filter(p => !p.approved);
+  const offs = (DATA.offerings || []).filter(o => !o.approved);
+  const setc = (id, n) => { const e = document.getElementById(id); if (e) e.textContent = n || ""; };
+  setc("ap-c-sellers", PENDING.length); setc("ap-c-products", prods.length); setc("ap-c-services", offs.length);
+  const cc = document.getElementById("apprCount");
+
+  if (APPRTAB === "sellers") {
+    if (cc) cc.textContent = `· ${PENDING.length} pending`;
+    body.innerHTML = `<table><thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Area</th><th>Action</th></tr></thead><tbody>`
+      + (PENDING.length ? PENDING.map(p =>
+        `<tr><td><b>${p.name || "-"}</b></td><td><span class="tag ${p._col === "services" ? "feat" : "info"}">${p._col === "services" ? "Service" : "Store"}</span></td>
+         <td>${p.category ? catLabel(p.category) : "-"}</td><td>${p.address || "-"}</td>
+         <td class="row-actions"><button class="approve" onclick="setApprovalById('${p._col}','${p.id}',true)">Approve</button>
+         <button class="reject" onclick="del('${p._col}','${p.id}')">Reject</button></td></tr>`).join("")
+        : `<tr><td colspan="5" class="empty">No new sellers waiting 🎉</td></tr>`) + `</tbody></table>`;
+  } else if (APPRTAB === "products") {
+    if (cc) cc.textContent = `· ${prods.length} pending`;
+    body.innerHTML = `<table><thead><tr><th></th><th>Product</th><th>Shop</th><th>Price</th><th>MRP</th><th>Action</th></tr></thead><tbody>`
+      + (prods.length ? prods.map(p =>
+        `<tr><td>${img(p.imageUrl)}</td><td><b>${p.name || "-"}</b><div class="crumb">${p.category ? catLabel(p.category) : ""}</div></td>
+         <td>${storeName(p.storeId)}</td><td>${money(p.price)}</td><td>${p.mrp ? money(p.mrp) : "-"}</td>
+         <td class="row-actions"><button class="approve" onclick="toggleField('products','${p.id}','approved',true)">Approve</button>
+         <button class="reject" onclick="del('products','${p.id}')">Reject</button></td></tr>`).join("")
+        : `<tr><td colspan="6" class="empty">No products waiting 🎉</td></tr>`) + `</tbody></table>`;
+  } else {
+    if (cc) cc.textContent = `· ${offs.length} pending`;
+    body.innerHTML = `<table><thead><tr><th></th><th>Service</th><th>Provider</th><th>Price</th><th>MRP</th><th>Action</th></tr></thead><tbody>`
+      + (offs.length ? offs.map(o =>
+        `<tr><td>${img(o.imageUrl)}</td><td><b>${o.name || "-"}</b><div class="crumb">${o.category ? catLabel(o.category) : ""}</div></td>
+         <td>${providerName(o.providerId)}</td><td>${money(o.price)}</td><td>${o.mrp ? money(o.mrp) : "-"}</td>
+         <td class="row-actions"><button class="approve" onclick="approveOffering('${o.id}')">Approve</button>
+         <button class="reject" onclick="rejectOffering('${o.id}')">Reject</button></td></tr>`).join("")
+        : `<tr><td colspan="6" class="empty">No service offerings waiting 🎉</td></tr>`) + `</tbody></table>`;
+  }
+}
 async function toggleField(col, id, field, value) {
   if (!LIVE) { toast("(demo) updated", "ok"); return; }
   try { await db.collection(col).doc(id).update({ [field]: value }); toast("Updated", "ok"); await loadAll(); }

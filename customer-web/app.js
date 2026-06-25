@@ -17,6 +17,7 @@ const DATA = { stores: [], services: [], categories: [], banners: [] };
 let CART = [];                 // [{productId,name,imageUrl,price,qty,storeId,storeName}]
 let CUR = null;                // current detail target {kind:'store'|'service', item}
 let LOC = null;                // {lat,lng,label}
+let RAD = 10;                  // search radius in km (5,10,15,20,25)
 let SIGNUP = false;
 let chatUnsub = null, curThreadId = null;
 
@@ -43,6 +44,17 @@ function distKm(a,b){ if(!a||!b) return null; const R=6371,dLat=(b.lat-a.lat)*Ma
   const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)); }
 function geo(item){ const g=item.location; if(g&&typeof g.latitude==="number") return {lat:g.latitude,lng:g.longitude}; return null; }
 function distLabel(item){ const d=LOC&&geo(item)?distKm(LOC,geo(item)):null; return d!=null?` · ${d.toFixed(1)} km`:""; }
+function withinRad(item){ if(!LOC) return true; const g=geo(item); return g?distKm(LOC,g)<=RAD:false; }
+function byDist(a,b){ const da=geo(a)?distKm(LOC,geo(a)):9e9, db=geo(b)?distKm(LOC,geo(b)):9e9; return da-db; }
+function setRadius(v){ RAD=parseInt(v,10)||10; try{localStorage.setItem("lk-rad",String(RAD));}catch(e){}
+  const av=document.querySelector(".view.active")?.id;
+  if(av==="view-stores")renderStores(); else if(av==="view-services")renderServices(); else renderHome(); }
+function radiusBar(){
+  if(!LOC) return `<div class="radbar"><span class="crumb">📍 Set your location to see nearby shops within a radius.</span> <button class="radchip" onclick="openLocation()">Set location</button></div>`;
+  return `<div class="radbar"><span class="crumb">Within</span>${[5,10,15,20,25].map(k=>`<button class="radchip ${RAD===k?"on":""}" onclick="setRadius(${k})">${k} km</button>`).join("")}</div>`;
+}
+// text match incl. name, category, address & pincode
+function matchText(s,q){ return !q || ((s.name||"")+" "+(s.category||"")+" "+(s.address||"")+" "+(s.pincode||"")).toLowerCase().includes(q); }
 
 /* ---------- auth ---------- */
 function loginErr(m){ $("loginErr").textContent=m||""; }
@@ -72,6 +84,7 @@ function startApp(){
   $("meAv").textContent=(ME.name||ME.email||"U")[0].toUpperCase();
   try{ CART=JSON.parse(localStorage.getItem("lk-cart")||"[]"); }catch(e){ CART=[]; }
   try{ LOC=JSON.parse(localStorage.getItem("lk-loc")||"null"); }catch(e){ LOC=null; }
+  try{ RAD=parseInt(localStorage.getItem("lk-rad")||"10",10)||10; }catch(e){ RAD=10; }
   $("locLabel").textContent=LOC?.label || "Set location";
   cartBadge();
   loadAll();
@@ -112,17 +125,20 @@ function renderHome(){
   const cats = DATA.categories;
   const storeCats = cats.filter(c=>(c.type||"store")==="store");
   const svcCats = cats.filter(c=>c.type==="service");
-  const nearby = [...DATA.stores].sort((a,b)=>{ const da=LOC&&geo(a)?distKm(LOC,geo(a)):9e9, dbb=LOC&&geo(b)?distKm(LOC,geo(b)):9e9; return da-dbb; });
+  const nearStores = (LOC?DATA.stores.filter(withinRad):DATA.stores.slice()).sort(LOC?byDist:(()=>0));
+  const nearSvcs   = (LOC?DATA.services.filter(withinRad):DATA.services.slice()).sort(LOC?byDist:(()=>0));
+  const nearTitle = LOC?`Within ${RAD} km`:"All stores";
   $("view-home").innerHTML = `
     ${bannerHtml()}
     <h2 class="sec">Shop by store category</h2>
     <div class="chips">${storeCats.map(c=>chipHtml(c,"stores")).join("")||emptyInline("No categories yet")}</div>
     <h2 class="sec">Book a service</h2>
     <div class="chips">${svcCats.map(c=>chipHtml(c,"services")).join("")||emptyInline("No services yet")}</div>
-    <h2 class="sec">Stores near you <span class="crumb">${DATA.stores.length} open</span></h2>
-    <div class="grid">${nearby.slice(0,8).map(s=>storeCardHtml(s,"store")).join("")||emptyInline("No stores yet")}</div>
-    <h2 class="sec">Popular services</h2>
-    <div class="grid">${DATA.services.slice(0,8).map(s=>storeCardHtml(s,"service")).join("")||emptyInline("No providers yet")}</div>
+    <h2 class="sec">Stores near you <span class="crumb">${nearTitle} · ${nearStores.length}</span></h2>
+    ${radiusBar()}
+    <div class="grid">${nearStores.slice(0,12).map(s=>storeCardHtml(s,"store")).join("")||emptyInline(LOC?`No stores within ${RAD} km — try a bigger radius.`:"No stores yet")}</div>
+    <h2 class="sec">Services near you <span class="crumb">${nearTitle} · ${nearSvcs.length}</span></h2>
+    <div class="grid">${nearSvcs.slice(0,12).map(s=>storeCardHtml(s,"service")).join("")||emptyInline(LOC?`No services within ${RAD} km — try a bigger radius.`:"No providers yet")}</div>
   `;
   startCarousel();
 }
@@ -168,14 +184,15 @@ function listView(view){
   const isStore=view==="stores"; const items=isStore?DATA.stores:DATA.services;
   const cats=DATA.categories.filter(c=>(c.type||"store")===(isStore?"store":"service"));
   const sel=filterState[view];
-  const q=($("globalSearch").value||"").toLowerCase();
-  let list=items.filter(s=>(sel==="all"||s.category===sel)&&(s.name||"").toLowerCase().includes(q));
-  if(LOC) list.sort((a,b)=>{ const da=geo(a)?distKm(LOC,geo(a)):9e9,dbb=geo(b)?distKm(LOC,geo(b)):9e9; return da-dbb; });
+  const q=($("globalSearch").value||"").toLowerCase().trim();
+  let list=items.filter(s=>(sel==="all"||s.category===sel)&&matchText(s,q));
+  if(LOC){ list=list.filter(withinRad); list.sort(byDist); }
   const chips=[`<div class="chip ${sel==="all"?"on":""}" onclick="filterCat('${view}','all')"><div class="ci">🟦</div><small>All</small></div>`]
     .concat(cats.map(c=>`<div class="chip ${sel===c.name?"on":""}" onclick="filterCat('${view}','${esc(c.name)}')"><div class="ci">${c.iconUrl?`<img src="${esc(c.iconUrl)}">`:catEmoji(c.name)}</div><small>${catLabel(c.name)}</small></div>`)).join("");
-  $("view-"+view).innerHTML=`<h2 class="sec">${isStore?"Stores":"Service providers"} <span class="crumb">${list.length} found</span></h2>
+  $("view-"+view).innerHTML=`<h2 class="sec">${isStore?"Stores":"Service providers"} <span class="crumb">${LOC?`within ${RAD} km · `:""}${list.length} found</span></h2>
+    ${radiusBar()}
     <div class="chips">${chips}</div>
-    <div class="grid">${list.map(s=>storeCardHtml(s,isStore?"store":"service")).join("")||emptyInline("Nothing here yet")}</div>`;
+    <div class="grid">${list.map(s=>storeCardHtml(s,isStore?"store":"service")).join("")||emptyInline(LOC?`Nothing within ${RAD} km — try a bigger radius or clear search.`:"Nothing here yet")}</div>`;
 }
 function renderStores(){ listView("stores"); }
 function renderServices(){ listView("services"); }
@@ -521,11 +538,12 @@ let searchTimer=null;
 function onSearch(){ clearTimeout(searchTimer); searchTimer=setTimeout(()=>{
   const q=($("globalSearch").value||"").toLowerCase().trim();
   if(!q){ if($("view-search").classList.contains("active")) go("home"); return; }
-  const st=DATA.stores.filter(s=>(s.name||"").toLowerCase().includes(q)||(s.category||"").includes(q));
-  const sv=DATA.services.filter(s=>(s.name||"").toLowerCase().includes(q)||(s.category||"").includes(q));
+  const st=DATA.stores.filter(s=>matchText(s,q));
+  const sv=DATA.services.filter(s=>matchText(s,q));
   document.querySelectorAll("#tabs a").forEach(x=>x.classList.remove("active"));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active")); $("view-search").classList.add("active");
   $("view-search").innerHTML=`<h2 class="sec">Results for “${esc(q)}” <span class="crumb">${st.length+sv.length} found</span></h2>
+    <div class="crumb" style="margin-bottom:8px">Searching by name, category, area & pincode${LOC?" (all areas, ignoring radius)":""}.</div>
     ${st.length?`<h2 class="sec">Stores</h2><div class="grid">${st.map(s=>storeCardHtml(s,"store")).join("")}</div>`:""}
     ${sv.length?`<h2 class="sec">Services</h2><div class="grid">${sv.map(s=>storeCardHtml(s,"service")).join("")}</div>`:""}
     ${!st.length&&!sv.length?`<div class="empty">No matches.</div>`:""}`;

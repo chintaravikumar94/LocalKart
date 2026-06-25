@@ -49,6 +49,11 @@ data class Store(
     val showWhatsapp: Boolean = false,
     val showPhoto: Boolean = false,
     val showLocation: Boolean = false,
+    // Location + pincode. Edits to an approved listing go to pending* until admin approves.
+    val pincode: String = "",
+    val pendingLocation: GeoPoint? = null,
+    val pendingPincode: String = "",
+    val locationApprovalPending: Boolean = false,
     val createdAt: Timestamp = Timestamp.now()
 )
 
@@ -76,6 +81,11 @@ data class ServiceProvider(
     val showWhatsapp: Boolean = false,
     val showPhoto: Boolean = false,
     val showLocation: Boolean = false,
+    // Location + pincode. Edits to an approved listing go to pending* until admin approves.
+    val pincode: String = "",
+    val pendingLocation: GeoPoint? = null,
+    val pendingPincode: String = "",
+    val locationApprovalPending: Boolean = false,
     val createdAt: Timestamp = Timestamp.now()
 )
 

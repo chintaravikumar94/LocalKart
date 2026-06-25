@@ -582,13 +582,14 @@ function renderListing(col, rowsId, qId, availField, onLbl, offLbl) {
   document.getElementById(rowsId).innerHTML = list.map(s =>
     `<tr><td>${img(s.photoUrl)}</td>
      <td><span class="tag info" title="Identification number">${idCode(col, s)}</span></td>
-     <td>${s.name}${s.featured ? ' <span class="tag feat">★</span>' : ""}</td><td>${s.category ? catLabel(s.category) : "-"}</td>
+     <td>${s.name}${s.featured ? ' <span class="tag feat">★</span>' : ""}${s.locationApprovalPending ? ' <span class="tag wait">📍 location change</span>' : ""}</td><td>${s.category ? catLabel(s.category) : "-"}</td>
      <td>${star(s.rating)} ${(s.rating || 0).toFixed ? Number(s.rating || 0).toFixed(1) : s.rating}</td>
      <td>${s[availField] ? `<span class="tag ok">${onLbl}</span>` : `<span class="tag no">${offLbl}</span>`}</td>
      <td>${tag(s.approved)}</td>
      <td class="row-actions">
        <button class="mini" onclick="editListing('${col}','${s.id}')">Edit</button>
        ${s.approved ? `<button class="mini" onclick="toggleField('${col}','${s.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('${col}','${s.id}','approved',true)">Approve</button>`}
+       ${s.locationApprovalPending ? `<button class="approve" onclick="approveLocation('${col}','${s.id}')">📍 Approve location</button><button class="reject" onclick="rejectLocation('${col}','${s.id}')">Reject loc</button>` : ""}
        <button class="reject" onclick="del('${col}','${s.id}')">Delete</button>
      </td></tr>`).join("") || empty(8);
 }
@@ -609,6 +610,21 @@ async function setApprovalById(col, id, approved) { return toggleField(col, id, 
 async function toggleField(col, id, field, value) {
   if (!LIVE) { toast("(demo) updated", "ok"); return; }
   try { await db.collection(col).doc(id).update({ [field]: value }); toast("Updated", "ok"); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+// Approve a seller's pending location/pincode change → make it the active location.
+async function approveLocation(col, id) {
+  if (!LIVE) { toast("(demo) location approved", "ok"); return; }
+  const s = (DATA[col] || []).find(x => x.id === id); if (!s) return;
+  const data = { locationApprovalPending: false, pendingLocation: null, pendingPincode: "" };
+  if (s.pendingLocation) data.location = s.pendingLocation;
+  if (s.pendingPincode) data.pincode = s.pendingPincode;
+  try { await db.collection(col).doc(id).update(data); toast("Location approved", "ok"); await loadAll(); }
+  catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+async function rejectLocation(col, id) {
+  if (!LIVE) { toast("(demo) rejected", "ok"); return; }
+  try { await db.collection(col).doc(id).update({ locationApprovalPending: false, pendingLocation: null, pendingPincode: "" }); toast("Location change rejected", "ok"); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
 }
 async function changeStatus(col, id, value) {

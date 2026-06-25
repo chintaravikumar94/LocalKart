@@ -152,7 +152,7 @@ function listingCard(s,kind){
     <div class="between"><b>${esc(s.name)}</b>${s.approved?'<span class="tag ok">Live</span>':'<span class="tag wait">Pending approval</span>'}</div>
     <div class="crumb" style="margin:4px 0">${catLabel(s.category)} · ★ ${(s.rating||0).toFixed(1)} (${s.ratingCount||0})</div>
     <div class="crumb">${esc(s.address||"")}</div>
-    <div style="margin-top:4px">${s.showContact?'<span class="tag ok">Contact shared</span>':'<span class="tag wait">Contact hidden</span>'}${s.location?' <span class="tag info">📍 Mapped</span>':''}</div>
+    <div style="margin-top:4px">${s.showContact?'<span class="tag ok">Contact shared</span>':'<span class="tag wait">Contact hidden</span>'}${s.location?' <span class="tag info">📍 Mapped</span>':''}${s.pincode?` <span class="tag info">PIN ${esc(s.pincode)}</span>`:''}${s.locationApprovalPending?' <span class="tag wait">Location pending</span>':''}</div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap">
       <button class="mini" onclick="openListing('${kind}','${s.id}')">Edit</button>
       <button class="mini" onclick="toggleAvail('${kind}','${s.id}',${isStore?!s.isOpen:!s.available})">${isStore?(s.isOpen?"Mark closed":"Mark open"):(s.available?"Mark busy":"Mark available")}</button>
@@ -176,8 +176,11 @@ function openListing(kind,id){
   editListingKind=kind; editListingId=id||null;
   const s=id?(kind==="store"?MY.stores:MY.services).find(x=>x.id===id):null;
   const isStore=kind==="store";
-  pendingLoc = (s&&s.location&&typeof s.location.latitude==="number") ? {lat:s.location.latitude,lng:s.location.longitude} : null;
-  const locTxt = pendingLoc ? `${pendingLoc.lat.toFixed(5)}, ${pendingLoc.lng.toFixed(5)} ✓` : "Not set";
+  // Pre-fill lat/lng from the pending edit if one is awaiting approval, else the active location.
+  const gl=(s&&s.pendingLocation&&typeof s.pendingLocation.latitude==="number")?s.pendingLocation
+        :(s&&s.location&&typeof s.location.latitude==="number")?s.location:null;
+  const latV=gl?gl.latitude:"" , lngV=gl?gl.longitude:"";
+  const pinV=(s&&s.locationApprovalPending&&s.pendingPincode)?s.pendingPincode:(s?.pincode||"");
   modal(`<h3>${id?"Edit":"Add"} ${isStore?"shop":"service"}</h3>
     <label>${isStore?"Shop":"Business"} name</label><input id="l-name" value="${esc(s?.name)}">
     <label>Category</label><select id="l-cat">${catOptions(isStore?"store":"service",s?.category)}</select>
@@ -199,8 +202,14 @@ function openListing(kind,id){
     <label>WhatsApp number</label><input id="l-wa" value="${esc(s?.whatsapp)}" placeholder="WhatsApp number (with country code if outside India)">
     ${toggleRow("l-showwa","Show WhatsApp to customers",flagDefault(s,"showWhatsapp"))}
 
-    <label>Shop GPS location</label>
-    <div class="row"><button class="ghost" type="button" onclick="captureLoc()">📍 Use current location</button><span class="crumb" id="l-loclabel">${locTxt}</span></div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)"><b>Location</b><div class="crumb">${s&&s.approved?"Changes to an approved shop's location need admin approval.":"Set your shop's exact spot."}</div></div>
+    <label>Pincode</label><input id="l-pincode" value="${esc(pinV)}" placeholder="6-digit PIN code">
+    <label>Latitude &amp; Longitude</label>
+    <div class="row" style="gap:8px">
+      <input id="l-lat" type="number" step="any" value="${latV}" placeholder="Latitude">
+      <input id="l-lng" type="number" step="any" value="${lngV}" placeholder="Longitude">
+    </div>
+    <div class="row" style="margin-top:6px;flex-wrap:wrap"><button class="ghost" type="button" onclick="captureLoc()">📍 Use current location</button>${s&&s.locationApprovalPending?'<span class="tag wait">Location change pending approval</span>':""}</div>
     ${toggleRow("l-showloc","Show map location to customers",flagDefault(s,"showLocation"))}
 
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="btn" id="l-save" onclick="saveListing()">Save</button></div>`);
@@ -210,12 +219,13 @@ function flagDefault(s,key){ return s && s[key]!==undefined ? !!s[key] : !!(s &&
 function toggleRow(id,label,on){
   return `<label class="switch"><input type="checkbox" id="${id}" ${on?"checked":""}><span class="track"></span><span>${label}</span></label>`;
 }
-let pendingLoc=null;
 function captureLoc(){
   if(!navigator.geolocation) return toast("Geolocation not supported","bad");
   toast("Locating…");
-  navigator.geolocation.getCurrentPosition(p=>{ pendingLoc={lat:p.coords.latitude,lng:p.coords.longitude};
-    const el=$("l-loclabel"); if(el) el.textContent=`${pendingLoc.lat.toFixed(5)}, ${pendingLoc.lng.toFixed(5)} ✓`; toast("Location captured 📍","ok"); },
+  navigator.geolocation.getCurrentPosition(p=>{
+    if($("l-lat")) $("l-lat").value=p.coords.latitude.toFixed(6);
+    if($("l-lng")) $("l-lng").value=p.coords.longitude.toFixed(6);
+    toast("Location captured 📍","ok"); },
     e=>toast("Couldn't get location: "+e.message,"bad"),{enableHighAccuracy:true,timeout:9000});
 }
 async function saveListing(){
@@ -233,11 +243,29 @@ async function saveListing(){
     if(!isStore) base.pricePerVisit=parseFloat(val("l-ppv")||"0")||0;
     if(photoUrl) base.photoUrl=photoUrl;
     if(ownerPhotoUrl) base.ownerPhotoUrl=ownerPhotoUrl;
-    if(pendingLoc) base.location=new firebase.firestore.GeoPoint(pendingLoc.lat,pendingLoc.lng);
+    // ---- location + pincode (admin approval for edits to an approved shop) ----
+    const lat=parseFloat(val("l-lat")), lng=parseFloat(val("l-lng")); const hasLoc=!isNaN(lat)&&!isNaN(lng);
+    const newGeo=hasLoc?new firebase.firestore.GeoPoint(lat,lng):null; const pincode=val("l-pincode");
+    const existing=editListingId?(isStore?MY.stores:MY.services).find(x=>x.id===editListingId):null;
     const col=isStore?"stores":"services";
+    let locMsg="";
+    if(!editListingId || !existing?.approved){
+      // new shop, or not-yet-approved: apply directly (part of the normal listing approval)
+      if(newGeo) base.location=newGeo;
+      base.pincode=pincode; base.locationApprovalPending=false;
+    }else{
+      const cur=existing.location;
+      const moved = newGeo && (!cur || Math.abs((cur.latitude||0)-lat)>1e-6 || Math.abs((cur.longitude||0)-lng)>1e-6);
+      const pinChanged = pincode!==(existing.pincode||"");
+      if(moved||pinChanged){
+        if(newGeo) base.pendingLocation=newGeo;
+        base.pendingPincode=pincode; base.locationApprovalPending=true;   // active location stays until admin approves
+        locMsg=" Location change sent for admin approval.";
+      }
+    }
     if(editListingId){ await db.collection(col).doc(editListingId).update(base); }
     else{ const doc={...base,photoUrl:photoUrl||"",rating:0,ratingCount:0,approved:false,createdAt:FV.serverTimestamp()}; if(isStore)doc.isOpen=true; else doc.available=true; await db.collection(col).add(doc); await maybeUpgradeRole(); }
-    toast("Saved ✅","ok"); closeModal(); await loadAll(); go(isStore?"shop":"services");
+    toast("Saved ✅"+locMsg,"ok"); closeModal(); await loadAll(); go(isStore?"shop":"services");
   }catch(e){ toast("Failed: "+e.message,"bad"); if(btn){btn.disabled=false;btn.textContent="Save";} }
 }
 async function maybeUpgradeRole(){

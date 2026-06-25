@@ -83,6 +83,9 @@
   .chip .ci img{width:100%;height:100%;object-fit:cover}
   .chip.on .ci{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary)}
   .chip small{font-size:11px;color:var(--muted);max-width:70px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .radbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 14px}
+  .radchip{background:var(--card);color:var(--muted);border:1px solid var(--line);padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:var(--elev)}
+  .radchip.on{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-color:transparent}
 
   /* cards grid */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
@@ -182,7 +185,7 @@
     <div class="bar-in">
       <div class="logo" style="width:38px;height:38px;font-size:14px">LK</div>
       <div class="loc" onclick="openLocation()"><span>📍</span><div><div style="font-size:10px">DELIVER TO</div><b id="locLabel">Set location</b></div></div>
-      <div class="search"><span class="ic">🔎</span><input id="globalSearch" placeholder="Search stores, services, products…" oninput="onSearch()"></div>
+      <div class="search"><span class="ic">🔎</span><input id="globalSearch" placeholder="Search by shop, service, area or pincode…" oninput="onSearch()"></div>
       <div class="iconbtn" onclick="go('notifications')">🔔<span class="badge" id="notifBadge" style="display:none">0</span></div>
       <div class="iconbtn" onclick="go('cart')">🛒<span class="badge" id="cartBadge" style="display:none">0</span></div>
       <div class="av" id="meAv" onclick="go('account')">U</div>
@@ -220,6 +223,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

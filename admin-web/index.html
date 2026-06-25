@@ -132,6 +132,7 @@
       <a data-view="services"><span class="ico">🔧</span> Service Providers</a>
       <a data-view="catalog"><span class="ico">📚</span> Master Catalog</a>
       <a data-view="products"><span class="ico">📦</span> Products</a>
+      <a data-view="serviceofferings"><span class="ico">🛠️</span> Services</a>
       <a data-view="categories"><span class="ico">🏷️</span> Categories</a>
       <div class="navgroup">Activity</div>
       <a data-view="orders"><span class="ico">🧾</span> Orders</a>
@@ -216,10 +217,17 @@
           <button class="add" onclick="openCatalogItem()">＋ Add item</button>
         </span></h3>
         <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Company-defined items. Sellers pick from these and set their own price.</div>
-        <table><thead><tr><th></th><th>Name</th><th>Type</th><th>Category</th><th>Unit</th><th>Suggested MRP</th><th>Sellers / prices</th><th>Action</th></tr></thead><tbody id="catalogRows"></tbody></table></div></section>
+        <table><thead><tr><th></th><th>Name</th><th>Type</th><th>Category</th><th>Unit</th><th>Suggested MRP</th><th>Action</th></tr></thead><tbody id="catalogRows"></tbody></table></div></section>
 
-    <section class="view" id="view-products"><div class="toolbar"><input id="q-prod" placeholder="Search products…" oninput="render()"></div>
-      <div class="panel"><h3>Seller Products</h3><table><thead><tr><th></th><th>Name</th><th>Price</th><th>MRP</th><th>In stock</th><th>Status</th><th>Action</th></tr></thead><tbody id="prodRows"></tbody></table></div></section>
+    <section class="view" id="view-products"><div class="toolbar"><input id="q-prod" placeholder="Search by product or shop…" oninput="render()"></div>
+      <div class="panel"><h3>Approved Products <span id="prodCount" class="crumb"></span></h3>
+        <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Products sellers added from the catalog with their selling price. Live = visible to customers.</div>
+        <table><thead><tr><th></th><th>Product</th><th>Shop</th><th>Selling price</th><th>MRP</th><th>In stock</th><th>Status</th><th>Action</th></tr></thead><tbody id="prodRows"></tbody></table></div></section>
+
+    <section class="view" id="view-serviceofferings"><div class="toolbar"><input id="q-svcoff" placeholder="Search by service or provider…" oninput="render()"></div>
+      <div class="panel"><h3>Approved Services <span id="svcOffCount" class="crumb"></span></h3>
+        <div style="padding:0 18px 10px;color:var(--muted);font-size:13px">Services providers added from the catalog with their charge. Live = visible to customers.</div>
+        <table><thead><tr><th></th><th>Service</th><th>Provider</th><th>Charge</th><th>MRP</th><th>Status</th><th>Action</th></tr></thead><tbody id="svcOffRows"></tbody></table></div></section>
 
     <section class="view" id="view-categories">
       <div class="tabs">
@@ -334,6 +342,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
-<script src="app.js?v=27"></script>
+<script src="app.js?v=28"></script>
 </body>
 </html>

@@ -118,7 +118,7 @@ function logout() { if (LIVE) auth.signOut(); document.getElementById("app").sty
 /* ---------- nav ---------- */
 const CRUMBS = {
   dashboard: "Overview of your marketplace", approvals: "Review & publish new sellers", stores: "Manage stores",
-  services: "Manage service providers", products: "Catalog items", categories: "Store & service categories",
+  services: "Manage service providers", products: "Approved seller products & prices", serviceofferings: "Approved seller services & prices", categories: "Store & service categories",
   orders: "Customer orders", bookings: "Service bookings", appointments: "Store appointments",
   requests: "Service / job requests", reviews: "Customer feedback", customers: "Registered users",
   owners: "Shop owners — contact & billing", providers: "Service providers — contact & billing",
@@ -208,33 +208,34 @@ function render() {
   renderListing("services", "svcRows", "q-svc", "available", "Yes", "No");
 
   const qp = filt("q-prod");
-  document.getElementById("prodRows").innerHTML = (D.products || []).filter(p => (p.name || "").toLowerCase().includes(qp)).map(p =>
-    `<tr><td>${img(p.imageUrl)}</td><td>${p.name}</td><td>${money(p.price)}</td><td>${p.mrp ? money(p.mrp) : "-"}</td>
+  const prodList = (D.products || []).filter(p => ((p.name || "") + " " + storeName(p.storeId)).toLowerCase().includes(qp));
+  const pc = document.getElementById("prodCount"); if (pc) pc.textContent = `· ${prodList.length} item(s) · ${prodList.filter(p => p.approved).length} live`;
+  document.getElementById("prodRows").innerHTML = prodList.map(p => {
+    const save = p.mrp > p.price ? `<div class="crumb" style="color:var(--green)">${Math.round((p.mrp - p.price) / p.mrp * 100)}% off</div>` : "";
+    return `<tr><td>${img(p.imageUrl)}</td>
+     <td><b>${p.name}</b><div class="crumb">${p.category ? catLabel(p.category) : ""}</div></td>
+     <td><b>${esc(storeName(p.storeId))}</b></td>
+     <td>${money(p.price)}${save}</td><td>${p.mrp ? money(p.mrp) : "-"}</td>
      <td>${p.inStock ? '<span class="tag ok">Yes</span>' : '<span class="tag no">No</span>'}</td>
      <td>${tag(p.approved)}</td>
      <td class="row-actions">
        ${p.approved ? `<button class="mini" onclick="toggleField('products','${p.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('products','${p.id}','approved',true)">Approve</button>`}
        <button class="mini" onclick="toggleField('products','${p.id}','inStock',${!p.inStock})">${p.inStock ? "Mark out" : "In stock"}</button>
-       <button class="reject" onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("") || empty(7);
+       <button class="reject" onclick="del('products','${p.id}')">Delete</button></td></tr>`; }).join("") || empty(8);
+
+  renderServiceOfferings();
 
   const qcat = filt("q-catalog");
   const catRows = (D.catalog || []).filter(c =>
     (TAB.catalog === "all" || c.type === TAB.catalog) &&
     (qcat === "" || (c.name || "").toLowerCase().includes(qcat) || (c.category || "").toLowerCase().includes(qcat)));
   const cc = document.getElementById("catalogCount"); if (cc) cc.textContent = `· ${catRows.length} item(s)`;
-  document.getElementById("catalogRows").innerHTML = catRows.map(c => {
-    const sl = catalogSellersOf(c), live = sl.filter(x => x.approved).length;
-    const prices = sl.map(x => x.price).filter(n => n > 0);
-    const range = prices.length ? (Math.min(...prices) === Math.max(...prices) ? money(prices[0]) : `${money(Math.min(...prices))}–${money(Math.max(...prices))}`) : "—";
-    const sellersCell = sl.length
-      ? `<b>${sl.length}</b> seller(s)<div class="crumb">${range}${live < sl.length ? ` · ${live} live` : ""}</div><button class="mini" onclick="catalogSellers('${c.id}')">View prices</button>`
-      : `<span class="crumb">No sellers yet</span>`;
-    return `<tr><td>${img(c.imageUrl)}</td><td>${c.name}</td>
+  document.getElementById("catalogRows").innerHTML = catRows.map(c =>
+    `<tr><td>${img(c.imageUrl)}</td><td>${c.name}</td>
      <td><span class="tag ${c.type === 'service' ? 'feat' : 'info'}">${c.type}</span></td><td>${c.category ? catLabel(c.category) : "-"}</td>
      <td>${c.unit || "-"}</td><td>${c.suggestedMrp ? money(c.suggestedMrp) : "-"}</td>
-     <td>${sellersCell}</td>
      <td class="row-actions"><button class="mini" onclick="editCatalogItem('${c.id}')">Edit</button>
-     <button class="reject" onclick="del('catalog','${c.id}')">Delete</button></td></tr>`; }).join("") || empty(8);
+     <button class="reject" onclick="del('catalog','${c.id}')">Delete</button></td></tr>`).join("") || empty(7);
 
   const catList = (D.categories || []).filter(c => tabKeepType(TAB.categories, c.type || "store"));
   const ctc = document.getElementById("catCount"); if (ctc) ctc.textContent = `· ${catList.length} categor${catList.length === 1 ? "y" : "ies"}`;
@@ -673,6 +674,24 @@ async function toggleField(col, id, field, value) {
   if (!LIVE) { toast("(demo) updated", "ok"); return; }
   try { await db.collection(col).doc(id).update({ [field]: value }); toast("Updated", "ok"); await loadAll(); }
   catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+// Seller service offerings page — who's selling each service & at what price.
+function renderServiceOfferings() {
+  const el = document.getElementById("svcOffRows"); if (!el) return;
+  const q = filt("q-svcoff");
+  const list = (DATA.offerings || []).filter(o => ((o.name || "") + " " + providerName(o.providerId)).toLowerCase().includes(q));
+  const sc = document.getElementById("svcOffCount"); if (sc) sc.textContent = `· ${list.length} item(s) · ${list.filter(o => o.approved).length} live`;
+  el.innerHTML = list.map(o => {
+    const save = o.mrp > o.price ? `<div class="crumb" style="color:var(--green)">${Math.round((o.mrp - o.price) / o.mrp * 100)}% off</div>` : "";
+    return `<tr><td>${img(o.imageUrl)}</td>
+      <td><b>${o.name}</b><div class="crumb">${o.category ? catLabel(o.category) : ""}</div></td>
+      <td><b>${esc(providerName(o.providerId))}</b></td>
+      <td>${money(o.price)}${save}</td><td>${o.mrp ? money(o.mrp) : "-"}</td>
+      <td>${tag(o.approved)}</td>
+      <td class="row-actions">
+        ${o.approved ? `<button class="mini" onclick="toggleField('serviceOfferings','${o.id}','approved',false)">Unpublish</button>` : `<button class="approve" onclick="toggleField('serviceOfferings','${o.id}','approved',true)">Approve</button>`}
+        <button class="reject" onclick="del('serviceOfferings','${o.id}')">Delete</button></td></tr>`;
+  }).join("") || empty(7);
 }
 // Approve a seller's pending location/pincode change → make it the active location.
 async function approveLocation(col, id) {

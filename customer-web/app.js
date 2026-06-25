@@ -152,14 +152,25 @@ function tileImg(e,c1,c2){ const svg=`<svg xmlns='http://www.w3.org/2000/svg' wi
 function catTile(cat,type){ const e=catEmoji(cat); return type==="service"?tileImg(e,"#7C3AED","#4c1d95"):tileImg(e,"#2563EB","#1e3a8a"); }
 function shopTypeBadge(t){ t=t||"physical"; if(t==="digital") return '<span class="tag info">💻 Online store</span>'; if(t==="hybrid") return '<span class="tag info">🏬💻 Store + Online</span>'; return '<span class="tag ok">🏬 Physical store</span>'; }
 function fulfilBadges(s){ let h=""; if(s.doorDelivery) h+=' <span class="tag info">🚚 Door delivery</span>'; if(s.pickup) h+=' <span class="tag info">🛍️ Pickup</span>'; return h; }
+// Curated, professional avatar palette — each name maps to a consistent colour.
+const AVA_COLORS=[["#2563EB","#1e40af"],["#0ea5a3","#0f766e"],["#7c3aed","#5b21b6"],["#db2777","#9d174d"],
+  ["#ea580c","#9a3412"],["#16a34a","#166534"],["#0891b2","#155e75"],["#4f46e5","#3730a3"],
+  ["#d97706","#92400e"],["#dc2626","#991b1b"],["#0d9488","#115e59"],["#9333ea","#6b21a8"]];
+function avaColor(name){ let h=0; const t=name||"?"; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return AVA_COLORS[h%AVA_COLORS.length]; }
+function letterTile(name){ const c=avaColor(name); const ch=((name||"?").trim()[0]||"?").toUpperCase(); return `<div class="lettertile" style="background:linear-gradient(135deg,${c[0]},${c[1]})">${esc(ch)}</div>`; }
 function storeCardHtml(s,kind){
-  const openTag = kind==="store" ? (s.isOpen?'<span class="pill open">Open</span>':'<span class="pill closed">Closed</span>') : (s.available?'<span class="pill open">Available</span>':'<span class="pill closed">Busy</span>');
+  const openOk=kind==="store"?s.isOpen:s.available;
+  const openTxt=kind==="store"?(s.isOpen?"Open":"Closed"):(s.available?"Available":"Busy");
+  const ph=s.photoUrl?`<img src="${esc(s.photoUrl)}" alt="">`:letterTile(s.name);
   return `<div class="card" onclick="openDetail('${kind}','${s.id}')">
-    <div class="ph">${img(s.photoUrl)}${openTag}</div>
-    <div class="bd"><div class="nm">${esc(s.name)}</div>
-      <div class="between"><span class="crumb">${catLabel(s.category)}</span><span class="rate">★ ${(s.rating||0).toFixed(1)}</span></div>
-      ${kind==="store"?`<div style="margin-top:5px">${shopTypeBadge(s.shopType)}${fulfilBadges(s)}</div>`:""}
-      <div class="crumb" style="margin-top:5px">${esc(s.address||"")}${distLabel(s)}</div>
+    <div class="ph">${ph}
+      <span class="pill ${openOk?"open":"closed"}">${openTxt}</span>
+      <span class="rate-chip">★ ${(s.rating||0).toFixed(1)}</span></div>
+    <div class="bd">
+      <div class="nm">${esc(s.name)}</div>
+      <div class="crumb cat-line">${catLabel(s.category)}</div>
+      ${kind==="store"?`<div class="card-tags">${shopTypeBadge(s.shopType)}${fulfilBadges(s)}</div>`:""}
+      <div class="crumb addr">📍 ${esc(s.address||"—")}${distLabel(s)}</div>
     </div></div>`;
 }
 

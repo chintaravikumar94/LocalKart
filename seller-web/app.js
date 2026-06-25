@@ -107,6 +107,17 @@ async function loadAll(){
 /* ---------- realtime ---------- */
 let _live=false, scopedSubs=[], refreshTimer=null, refreshDirty=false;
 function modalOpen(){ return $("modalBg").classList.contains("open"); }
+// Surface a live-sync failure instead of silently showing stale data.
+function setSyncError(on){
+  let el=$("syncBar");
+  if(!on){ if(el) el.remove(); return; }
+  if(el) return;
+  el=document.createElement("div"); el.id="syncBar";
+  el.style.cssText="position:fixed;left:0;right:0;bottom:0;background:#7f1d1d;color:#fff;padding:11px 16px;display:flex;gap:12px;align-items:center;justify-content:center;z-index:80;font-size:14px;box-shadow:0 -6px 20px rgba(0,0,0,.3)";
+  el.innerHTML=`⚠️ Live updates paused — you may be seeing older data. <button onclick="location.reload()" style="background:#fff;color:#7f1d1d;border:none;padding:6px 14px;border-radius:9px;font-weight:700;cursor:pointer">Reconnect</button>`;
+  document.body.appendChild(el);
+}
+const liveErr=name=>(e=>{ console.warn("live "+name, e&&e.message); setSyncError(true); });
 function rerenderActive(){
   $("bizName").textContent = MY.stores[0]?.name || MY.services[0]?.name || ME.name || "Your business";
   const v=(document.querySelector(".view.active")?.id||"view-dashboard").replace("view-","");
@@ -119,7 +130,7 @@ function rebuildScoped(){
   const storeIds=MY.stores.map(s=>s.id).slice(0,10), svcIds=MY.services.map(s=>s.id).slice(0,10);
   const ids=storeIds.concat(svcIds).slice(0,10);
   const watch=(col,field,arr,key)=>{ if(!arr.length){ MY[key]=[]; return; }
-    scopedSubs.push(db.collection(col).where(field,"in",arr).onSnapshot(s=>{ MY[key]=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); }, e=>console.warn(col,e.message))); };
+    scopedSubs.push(db.collection(col).where(field,"in",arr).onSnapshot(s=>{ MY[key]=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); }, liveErr(col))); };
   watch("products","storeId",storeIds,"products");
   watch("orders","storeId",storeIds,"orders");
   watch("bookings","providerId",svcIds,"bookings");
@@ -128,11 +139,11 @@ function rebuildScoped(){
 }
 function subscribeLive(){
   if(_live || !ME) return; _live=true;
-  db.collection("stores").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.stores=s.docs.map(d=>({id:d.id,...d.data()})); rebuildScoped(); liveRender(); },e=>console.warn("stores",e.message));
-  db.collection("services").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.services=s.docs.map(d=>({id:d.id,...d.data()})); rebuildScoped(); liveRender(); },e=>console.warn("services",e.message));
-  db.collection("serviceOfferings").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.offerings=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },e=>console.warn("offerings",e.message));
-  db.collection("branding").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.branding=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },e=>console.warn("branding",e.message));
-  db.collection("billing").doc(ME.uid).onSnapshot(d=>{ BILLING=d.exists?d.data():{}; liveRender(); },e=>console.warn("billing",e.message));
+  db.collection("stores").where("ownerUid","==",ME.uid).onSnapshot(s=>{ setSyncError(false); MY.stores=s.docs.map(d=>({id:d.id,...d.data()})); rebuildScoped(); liveRender(); },liveErr("stores"));
+  db.collection("services").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.services=s.docs.map(d=>({id:d.id,...d.data()})); rebuildScoped(); liveRender(); },liveErr("services"));
+  db.collection("serviceOfferings").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.offerings=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },liveErr("offerings"));
+  db.collection("branding").where("ownerUid","==",ME.uid).onSnapshot(s=>{ MY.branding=s.docs.map(d=>({id:d.id,...d.data()})); liveRender(); },liveErr("branding"));
+  db.collection("billing").doc(ME.uid).onSnapshot(d=>{ BILLING=d.exists?d.data():{}; liveRender(); },liveErr("billing"));
   db.collection("plans").onSnapshot(s=>{ PLANS=s.docs.map(d=>({id:d.id,...d.data()})); },e=>{});
   db.collection("categories").onSnapshot(s=>{ CATS=s.docs.map(d=>({id:d.id,...d.data()})); },e=>{});
   db.collection("notifications").where("toUid","==",ME.uid).onSnapshot(()=>loadNotifBadge(),e=>{});
@@ -421,31 +432,6 @@ function editPrice(id){
 }
 async function saveEditPrice(id){ const mrp=parseFloat(val("ep-mrp")||"0")||0,price=parseFloat(val("ep-price")||"0")||0;
   try{ await db.collection("products").doc(id).update({mrp,price}); toast("Price updated","ok"); closeModal(); await loadAll(); renderProducts(); }catch(e){ toast("Failed: "+e.message,"bad"); } }
-
-/* ---------- offerings (service prices) ---------- */
-async function openOffering(providerId){
-  modal(`<h3>Add service price</h3><input id="cp-q" placeholder="Search services…" oninput="filterOfferPick()"><div id="cp-list" style="max-height:340px;overflow:auto;margin-top:10px"><div class="muted center">Loading…</div></div>
-    <div class="actions"><button class="ghost" onclick="closeModal()">Close</button></div>`);
-  const items=await loadCatalog("service"); window._cpProvider=providerId; window._cpItems=items; renderOfferPick(items);
-}
-function filterOfferPick(){ const q=val("cp-q").toLowerCase(); renderOfferPick((window._cpItems||[]).filter(i=>(i.name||"").toLowerCase().includes(q)||(i.category||"").includes(q))); }
-function renderOfferPick(items){
-  $("cp-list").innerHTML=items.length?items.map(i=>`<div class="listrow">${img(i.imageUrl,"thumb")}<div style="flex:1"><b>${esc(i.name)}</b><div class="crumb">${catLabel(i.category)}</div></div>
-    <button class="btn" onclick='pickOffer(${JSON.stringify(i).replace(/'/g,"&#39;")})'>Set price</button></div>`).join(""):'<div class="empty">No service catalog items.</div>';
-}
-function pickOffer(i){
-  modal(`<h3>Set your price</h3><p class="crumb">${esc(i.name)}</p>
-    <label>MRP (₹)</label><input id="pp-mrp" type="number" value="${i.suggestedMrp||""}" oninput="ppPreview()">
-    <label>Your price (₹)</label><input id="pp-price" type="number" oninput="ppPreview()">
-    <div id="pp-prev" class="save" style="margin-top:8px"></div>
-    <div class="banner warn" style="margin-top:10px"><span>⏳</span><div>Goes live after admin approval.</div></div>
-    <div class="actions"><button class="ghost" onclick="openOffering(window._cpProvider)">← Back</button><button class="btn" id="pp-save" onclick='saveOffer(${JSON.stringify(i).replace(/'/g,"&#39;")})'>Add service</button></div>`);
-}
-async function saveOffer(i){
-  const mrp=parseFloat(val("pp-mrp")||"0")||0, price=parseFloat(val("pp-price")||"0")||0; if(price<=0) return toast("Enter a price","bad");
-  try{ await db.collection("serviceOfferings").add({ ownerUid:ME.uid, providerId:window._cpProvider, catalogId:i.id, name:i.name, category:i.category||"", imageUrl:i.imageUrl||"", price, mrp, approved:false });
-    toast("Added — pending approval","ok"); closeModal(); await loadAll(); renderServices(); }catch(e){ toast("Failed: "+e.message,"bad"); }
-}
 
 /* ---------- orders ---------- */
 const ORDER_ST=["PENDING","ACTIVE","COMPLETED","CANCELLED"], BOOK_ST=["NEW","CONFIRMED","DONE","CANCELLED"], REQ_ST=["NEW","IN_PROGRESS","DONE","REJECTED"];

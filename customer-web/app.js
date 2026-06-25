@@ -43,14 +43,15 @@ function tsMs(ts){ return ts? (ts.seconds?ts.seconds*1000:(ts.toMillis?ts.toMill
 function distKm(a,b){ if(!a||!b) return null; const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
   const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)); }
 function geo(item){ const g=item.location; if(g&&typeof g.latitude==="number") return {lat:g.latitude,lng:g.longitude}; return null; }
-function distLabel(item){ const d=LOC&&geo(item)?distKm(LOC,geo(item)):null; return d!=null?` · ${d.toFixed(1)} km`:""; }
-function withinRad(item){ if(!LOC) return true; const g=geo(item); return g?distKm(LOC,g)<=RAD:false; }
-function byDist(a,b){ const da=geo(a)?distKm(LOC,geo(a)):9e9, db=geo(b)?distKm(LOC,geo(b)):9e9; return da-db; }
+function locReady(){ return !!(LOC && typeof LOC.lat==="number" && typeof LOC.lng==="number"); }
+function distLabel(item){ const d=locReady()&&geo(item)?distKm(LOC,geo(item)):null; return d!=null?` · ${d.toFixed(1)} km`:""; }
+function withinRad(item){ if(!locReady()) return true; const g=geo(item); return g?distKm(LOC,g)<=RAD:false; }
+function byDist(a,b){ if(!locReady()) return 0; const da=geo(a)?distKm(LOC,geo(a)):9e9, db=geo(b)?distKm(LOC,geo(b)):9e9; return da-db; }
 function setRadius(v){ RAD=parseInt(v,10)||10; try{localStorage.setItem("lk-rad",String(RAD));}catch(e){}
   const av=document.querySelector(".view.active")?.id;
   if(av==="view-stores")renderStores(); else if(av==="view-services")renderServices(); else renderHome(); }
 function radiusBar(){
-  if(!LOC) return `<div class="radbar"><span class="crumb">📍 Set your location to see nearby shops within a radius.</span> <button class="radchip" onclick="openLocation()">Set location</button></div>`;
+  if(!locReady()) return `<div class="radbar"><span class="crumb">📍 Use your current location to see nearby shops within a radius.</span> <button class="radchip" onclick="useMyLocation()">📍 Use my location</button></div>`;
   return `<div class="radbar"><span class="crumb">Within</span>${[5,10,15,20,25].map(k=>`<button class="radchip ${RAD===k?"on":""}" onclick="setRadius(${k})">${k} km</button>`).join("")}</div>`;
 }
 // text match incl. name, category, address & pincode
@@ -126,9 +127,10 @@ function renderHome(){
   const cats = DATA.categories;
   const storeCats = cats.filter(c=>(c.type||"store")==="store");
   const svcCats = cats.filter(c=>c.type==="service");
-  const nearStores = (LOC?DATA.stores.filter(withinRad):DATA.stores.slice()).sort(LOC?byDist:(()=>0));
-  const nearSvcs   = (LOC?DATA.services.filter(withinRad):DATA.services.slice()).sort(LOC?byDist:(()=>0));
-  const nearTitle = LOC?`Within ${RAD} km`:"All stores";
+  const ready=locReady();
+  const nearStores = (ready?DATA.stores.filter(withinRad):DATA.stores.slice()).sort(ready?byDist:(()=>0));
+  const nearSvcs   = (ready?DATA.services.filter(withinRad):DATA.services.slice()).sort(ready?byDist:(()=>0));
+  const nearTitle = ready?`Within ${RAD} km`:"All";
   $("view-home").innerHTML = `
     ${bannerHtml()}
     <h2 class="sec">Shop by store category</h2>
@@ -204,10 +206,10 @@ function listView(view){
   const sel=filterState[view];
   const q=($("globalSearch").value||"").toLowerCase().trim();
   let list=items.filter(s=>(sel==="all"||s.category===sel)&&matchText(s,q));
-  if(LOC){ list=list.filter(withinRad); list.sort(byDist); }
+  if(locReady()){ list=list.filter(withinRad); list.sort(byDist); }
   const chips=[`<div class="chip ${sel==="all"?"on":""}" onclick="filterCat('${view}','all')"><div class="ci">🟦</div><small>All</small></div>`]
     .concat(cats.map(c=>`<div class="chip ${sel===c.name?"on":""}" onclick="filterCat('${view}','${esc(c.name)}')"><div class="ci">${c.iconUrl?`<img src="${esc(c.iconUrl)}">`:catEmoji(c.name)}</div><small>${catLabel(c.name)}</small></div>`)).join("");
-  $("view-"+view).innerHTML=`<h2 class="sec">${isStore?"Stores":"Service providers"} <span class="crumb">${LOC?`within ${RAD} km · `:""}${list.length} found</span></h2>
+  $("view-"+view).innerHTML=`<h2 class="sec">${isStore?"Stores":"Service providers"} <span class="crumb">${locReady()?`within ${RAD} km · `:""}${list.length} found</span></h2>
     ${radiusBar()}
     <div class="chips">${chips}</div>
     <div class="grid">${list.map(s=>storeCardHtml(s,isStore?"store":"service")).join("")||emptyInline(LOC?`Nothing within ${RAD} km — try a bigger radius or clear search.`:"Nothing here yet")}</div>`;
@@ -227,6 +229,7 @@ async function openDetail(kind,id){
     else extras=(await db.collection("serviceOfferings").where("providerId","==",id).get()).docs.map(d=>({id:d.id,...d.data()})).filter(o=>o.approved);
   }catch(e){ /* offerings may use ownerUid; ignore */ }
   try{ CUR.brand=(await db.collection("branding").where("targetId","==",id).get()).docs.map(d=>({id:d.id,...d.data()})).filter(b=>b.approved); }catch(e){ CUR.brand=[]; }
+  CUR.extras=extras;
   try{ renderDetail(item,kind,extras); }
   catch(e){ $("view-detail").innerHTML=`<div class="empty">Couldn't open this shop.<br><button class="btn" style="margin-top:10px" onclick="go('${kind==="store"?"stores":"services"}')">← Back</button></div>`; }
 }
@@ -343,10 +346,11 @@ function cartBadge(){ const n=CART.reduce((s,i)=>s+i.qty,0); const b=$("cartBadg
 function addToCart(p){
   if(CART.length && CART[0].storeId!==p.storeId){ if(!confirm("Your cart has items from another store. Clear it and add this?")) return; CART=[]; }
   CART.push({productId:p.id,name:p.name,imageUrl:p.imageUrl,price:p.price,qty:1,storeId:p.storeId,storeName:p.storeName});
-  saveCart(); toast("Added to cart","ok"); if($("view-detail").classList.contains("active")&&CUR) openDetail(CUR.kind,CUR.item.id);
+  saveCart(); toast("Added to cart","ok"); if($("view-detail").classList.contains("active")) refreshDetail();
 }
+function refreshDetail(){ if(CUR) renderDetail(CUR.item,CUR.kind,CUR.extras||[]); }   // local re-render, no refetch
 function chgQty(pid,d){ const it=CART.find(x=>x.productId===pid); if(!it) return; it.qty+=d; if(it.qty<=0) CART=CART.filter(x=>x.productId!==pid); saveCart();
-  if($("view-cart").classList.contains("active")) renderCart(); else if(CUR) openDetail(CUR.kind,CUR.item.id); }
+  if($("view-cart").classList.contains("active")) renderCart(); else refreshDetail(); }
 function renderCart(){
   if(!CART.length){ $("view-cart").innerHTML=`<h2 class="sec">Cart</h2><div class="empty">🛒 Your cart is empty.<br><button class="btn" style="margin-top:12px" onclick="go('stores')">Browse stores</button></div>`; return; }
   const total=CART.reduce((s,i)=>s+i.price*i.qty,0);
@@ -391,9 +395,7 @@ async function renderOrders(){
 /* ---------- bookings / requests / appointments ---------- */
 let bookTab="bookings";
 async function renderBookings(){
-  $("view-bookings").innerHTML=`<h2 class="sec">My activity</h2>
-    <div class="chips">
-      <div class="chip"></div></div><div class="panel"><div class="muted center">Loading…</div></div>`;
+  $("view-bookings").innerHTML=`<h2 class="sec">My activity</h2><div class="panel"><div class="muted center">Loading…</div></div>`;
   let bk=[],rq=[],ap=[];
   try{
     [bk,rq,ap]=await Promise.all([

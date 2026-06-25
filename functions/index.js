@@ -176,3 +176,29 @@ exports.razorpayWebhook = functions.https.onRequest(async (req, res) => {
     res.status(500).send("error");
   }
 });
+
+/* =================== Admin custom claims =================== */
+/**
+ * Keep an "admin" custom claim in sync with the admins/{uid} collection.
+ * Creating an admins doc grants the claim; deleting it revokes the claim.
+ * Firestore rules check request.auth.token.admin == true (with the admins-doc
+ * lookup kept as a fallback so existing admins keep working immediately).
+ * NOTE: the admin must refresh their ID token (re-login or getIdToken(true))
+ * for a newly granted claim to take effect.
+ */
+exports.onAdminDocWrite = functions.firestore
+  .document("admins/{uid}")
+  .onWrite(async (change, context) => {
+    const uid = context.params.uid;
+    const isAdmin = change.after.exists;
+    try {
+      await admin.auth().setCustomUserClaims(uid, { admin: isAdmin });
+      await db.collection("users").doc(uid).set(
+        { adminClaim: isAdmin, adminClaimAt: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+      console.log(`Admin claim ${isAdmin ? "granted" : "revoked"} for ${uid}`);
+    } catch (e) {
+      console.error("setCustomUserClaims failed for", uid, e.message);
+    }
+  });

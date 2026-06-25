@@ -4,7 +4,7 @@ service cloud.firestore {
 
     function isSignedIn() { return request.auth != null; }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
-    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isAdmin() { return isSignedIn() && (request.auth.token.admin == true || exists(/databases/$(database)/documents/admins/$(request.auth.uid))); }
     // Only the rating aggregate fields are being changed (used after a review is posted).
     function onlyRatingChanged() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'ratingCount']);

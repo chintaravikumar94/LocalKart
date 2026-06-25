@@ -40,6 +40,11 @@ data class Store(
     val address: String = "",
     val isOpen: Boolean = true,
     val approved: Boolean = false,
+    // Owner contact (shown to customers only when showContact = true)
+    val phone: String = "",
+    val whatsapp: String = "",
+    val ownerPhotoUrl: String = "",
+    val showContact: Boolean = false,
     val createdAt: Timestamp = Timestamp.now()
 )
 
@@ -58,6 +63,11 @@ data class ServiceProvider(
     val location: GeoPoint? = null,
     val address: String = "",
     val pricePerVisit: Double = 0.0,
+    // Owner contact (shown to customers only when showContact = true)
+    val phone: String = "",
+    val whatsapp: String = "",
+    val ownerPhotoUrl: String = "",
+    val showContact: Boolean = false,
     val createdAt: Timestamp = Timestamp.now()
 )
 

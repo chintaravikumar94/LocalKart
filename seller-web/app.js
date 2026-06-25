@@ -152,6 +152,7 @@ function listingCard(s,kind){
     <div class="between"><b>${esc(s.name)}</b>${s.approved?'<span class="tag ok">Live</span>':'<span class="tag wait">Pending approval</span>'}</div>
     <div class="crumb" style="margin:4px 0">${catLabel(s.category)} · ★ ${(s.rating||0).toFixed(1)} (${s.ratingCount||0})</div>
     <div class="crumb">${esc(s.address||"")}</div>
+    <div style="margin-top:4px">${s.showContact?'<span class="tag ok">Contact shared</span>':'<span class="tag wait">Contact hidden</span>'}${s.location?' <span class="tag info">📍 Mapped</span>':''}</div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap">
       <button class="mini" onclick="openListing('${kind}','${s.id}')">Edit</button>
       <button class="mini" onclick="toggleAvail('${kind}','${s.id}',${isStore?!s.isOpen:!s.available})">${isStore?(s.isOpen?"Mark closed":"Mark open"):(s.available?"Mark busy":"Mark available")}</button>
@@ -175,24 +176,48 @@ function openListing(kind,id){
   editListingKind=kind; editListingId=id||null;
   const s=id?(kind==="store"?MY.stores:MY.services).find(x=>x.id===id):null;
   const isStore=kind==="store";
+  pendingLoc = (s&&s.location&&typeof s.location.latitude==="number") ? {lat:s.location.latitude,lng:s.location.longitude} : null;
+  const locTxt = pendingLoc ? `${pendingLoc.lat.toFixed(5)}, ${pendingLoc.lng.toFixed(5)} ✓` : "Not set";
   modal(`<h3>${id?"Edit":"Add"} ${isStore?"shop":"service"}</h3>
     <label>${isStore?"Shop":"Business"} name</label><input id="l-name" value="${esc(s?.name)}">
     <label>Category</label><select id="l-cat">${catOptions(isStore?"store":"service",s?.category)}</select>
     <label>Description</label><textarea id="l-desc" rows="2">${esc(s?.description)}</textarea>
     <label>Address / area</label><input id="l-addr" value="${esc(s?.address)}">
     ${isStore?"":`<label>Price per visit (₹)</label><input id="l-ppv" type="number" value="${s?.pricePerVisit??""}">`}
-    <label>Photo ${id?"(leave empty to keep)":""}</label><input id="l-file" type="file" accept="image/*" onchange="previewFile('l-file','l-prev')">
+    <label>Shop / cover photo ${id?"(leave empty to keep)":""}</label><input id="l-file" type="file" accept="image/*" onchange="previewFile('l-file','l-prev')">
     <img id="l-prev" src="${s?.photoUrl||""}" style="display:${s?.photoUrl?"block":"none"};width:100%;height:120px;object-fit:cover;border-radius:12px;margin-top:8px">
+
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)"><b>Owner contact</b></div>
+    <label>Owner photo (optional)</label><input id="l-ownerfile" type="file" accept="image/*" onchange="previewFile('l-ownerfile','l-ownerprev')">
+    <img id="l-ownerprev" src="${s?.ownerPhotoUrl||""}" style="display:${s?.ownerPhotoUrl?"block":"none"};width:72px;height:72px;border-radius:50%;object-fit:cover;margin-top:8px">
+    <label>Phone number</label><input id="l-phone" value="${esc(s?.phone)}" placeholder="10-digit mobile">
+    <label>WhatsApp number</label><input id="l-wa" value="${esc(s?.whatsapp)}" placeholder="WhatsApp number (with country code if outside India)">
+    <label>Shop GPS location</label>
+    <div class="row"><button class="ghost" type="button" onclick="captureLoc()">📍 Use current location</button><span class="crumb" id="l-loclabel">${locTxt}</span></div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer"><input type="checkbox" id="l-showcontact" ${s?.showContact?"checked":""} style="width:auto"> Show my photo, phone, WhatsApp & map location to customers</label>
+
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="btn" id="l-save" onclick="saveListing()">Save</button></div>`);
+}
+let pendingLoc=null;
+function captureLoc(){
+  if(!navigator.geolocation) return toast("Geolocation not supported","bad");
+  toast("Locating…");
+  navigator.geolocation.getCurrentPosition(p=>{ pendingLoc={lat:p.coords.latitude,lng:p.coords.longitude};
+    const el=$("l-loclabel"); if(el) el.textContent=`${pendingLoc.lat.toFixed(5)}, ${pendingLoc.lng.toFixed(5)} ✓`; toast("Location captured 📍","ok"); },
+    e=>toast("Couldn't get location: "+e.message,"bad"),{enableHighAccuracy:true,timeout:9000});
 }
 async function saveListing(){
   const name=val("l-name"); if(!name) return toast("Name required","bad");
   const isStore=editListingKind==="store"; const btn=$("l-save"); if(btn){btn.disabled=true;btn.textContent="Saving…";}
   try{
     const photoUrl=await uploadImage("l-file",isStore?"stores":"services");
-    const base={name,category:val("l-cat"),description:val("l-desc"),address:val("l-addr"),ownerUid:ME.uid};
+    const ownerPhotoUrl=await uploadImage("l-ownerfile","ownerPhotos");
+    const base={name,category:val("l-cat"),description:val("l-desc"),address:val("l-addr"),ownerUid:ME.uid,
+      phone:val("l-phone"), whatsapp:val("l-wa"), showContact:$("l-showcontact")?.checked||false};
     if(!isStore) base.pricePerVisit=parseFloat(val("l-ppv")||"0")||0;
     if(photoUrl) base.photoUrl=photoUrl;
+    if(ownerPhotoUrl) base.ownerPhotoUrl=ownerPhotoUrl;
+    if(pendingLoc) base.location=new firebase.firestore.GeoPoint(pendingLoc.lat,pendingLoc.lng);
     const col=isStore?"stores":"services";
     if(editListingId){ await db.collection(col).doc(editListingId).update(base); }
     else{ const doc={...base,photoUrl:photoUrl||"",rating:0,ratingCount:0,approved:false,createdAt:FV.serverTimestamp()}; if(isStore)doc.isOpen=true; else doc.available=true; await db.collection(col).add(doc); await maybeUpgradeRole(); }

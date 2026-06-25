@@ -240,29 +240,45 @@ function brandingHtml(brand){
 }
 function renderDetail(s,kind,extras){
   const isStore=kind==="store";
-  const head=`<div class="panel" style="padding:0;overflow:hidden">
-      <div class="hero">${s.photoUrl?`<img src="${esc(s.photoUrl)}" alt="">`:`<div class="hero-ph">🏬</div>`}</div>
-      <div style="padding:16px">
-        <div class="between"><h2 style="font-size:20px">${esc(s.name)}</h2>
-          <span class="rate">★ ${(s.rating||0).toFixed(1)} <span class="crumb">(${s.ratingCount||0})</span></span></div>
-        <div class="crumb" style="margin-top:4px">${catLabel(s.category)} · ${isStore?(s.isOpen?'<span class="tag ok">Open now</span>':'<span class="tag no">Closed</span>'):(s.available?'<span class="tag ok">Available</span>':'<span class="tag no">Busy</span>')}</div>
-        ${isStore?`<div style="margin-top:6px">${shopTypeBadge(s.shopType)}${fulfilBadges(s)}</div>`:""}
-        <div class="crumb" style="margin-top:4px">${esc(s.address||"")}${distLabel(s)}</div>
-        ${s.description?`<div style="margin-top:6px;font-size:14px">${esc(s.description)}</div>`:""}
-      <div class="row" style="margin-top:12px;flex-wrap:wrap">
-        <button class="ghost" onclick="startChat()">💬 Chat</button>
+  const availOk=isStore?s.isOpen:s.available;
+  const availTxt=isStore?(s.isOpen?"Open now":"Closed"):(s.available?"Available":"Busy");
+  const rate=(s.rating||0).toFixed(1), rc=s.ratingCount||0;
+  const stat=(ic,v,l)=>`<div class="dstat"><div class="dstat-n">${ic} ${v}</div><div class="dstat-l">${l}</div></div>`;
+  const back=`<button class="dback" onclick="go('${isStore?"stores":"services"}')">←</button>`;
+  const head=`
+    <div class="shop-hero">
+      ${s.photoUrl?`<img src="${esc(s.photoUrl)}" alt="">`:`<div class="hero-ph">🏬</div>`}
+      <div class="shop-hero-grad"></div>
+      ${back}
+      <span class="hero-pill ${availOk?"open":"closed"}">${availTxt}</span>
+      <div class="shop-hero-cap">
+        <div class="shop-hero-title">${esc(s.name)}</div>
+        <div class="shop-hero-sub">${catLabel(s.category)}${s.address?` · ${esc(s.address)}`:""}</div>
+      </div>
+    </div>
+    <div class="panel shop-card">
+      ${isStore?`<div class="shop-badges">${shopTypeBadge(s.shopType)}${fulfilBadges(s)}</div>`:""}
+      <div class="dstats">
+        ${stat("⭐",rate,`${rc} rating${rc===1?"":"s"}`)}
+        ${stat(isStore?"📦":"🛠️",extras.length,isStore?"products":"services")}
+        ${stat("📍",(LOC&&geo(s))?distKm(LOC,geo(s)).toFixed(1)+" km":"—","near you")}
+        ${stat(availOk?"🟢":"🔴",availTxt,isStore?"store":"service")}
+      </div>
+      ${s.description?`<div class="shop-desc">“${esc(s.description)}”</div>`:""}
+      <div class="shop-actions">
+        <button class="btn" onclick="startChat()">💬 Chat</button>
         <button class="ghost" onclick="openReviews()">⭐ Reviews</button>
-        ${isStore?`<button class="ghost" onclick="openAppointment()">🗓️ Book appointment</button>`
-                 :`<button class="ghost" onclick="openBooking()">📅 Book service</button><button class="ghost" onclick="openRequest()">🛠️ Request job</button>`}
-        <button class="btn alt" onclick="go('${isStore?"stores":"services"}')">← Back</button>
-      </div></div></div>`;
+        ${isStore?`<button class="ghost" onclick="openAppointment()">🗓️ Appointment</button>`
+                 :`<button class="ghost" onclick="openBooking()">📅 Book</button><button class="ghost" onclick="openRequest()">🛠️ Request</button>`}
+      </div>
+    </div>`;
   let body="";
   if(isStore){
-    body=`<h2 class="sec">Products <span class="crumb">${extras.length} items</span></h2>
+    body=`<h2 class="sec">Products <span class="crumb">${extras.length} item${extras.length===1?"":"s"}</span></h2>
       <div class="pgrid">${extras.map(p=>productTile(p,s)).join("")||emptyInline("No products listed yet")}</div>`;
   }else{
     body=`<h2 class="sec">Services offered <span class="crumb">${extras.length}</span></h2>
-      <div class="pgrid">${extras.map(o=>offeringTile(o,s)).join("")||emptyInline("Use “Book service” or “Request job” above.")}</div>`;
+      <div class="pgrid">${extras.map(o=>offeringTile(o,s)).join("")||emptyInline("Use “Book” or “Request” above to reach this provider.")}</div>`;
   }
   $("view-detail").innerHTML=head+contactBlock(s)+brandingHtml(CUR&&CUR.brand)+body;
 }

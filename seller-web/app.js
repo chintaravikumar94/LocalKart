@@ -25,8 +25,9 @@ applyTheme((()=>{try{return localStorage.getItem("lks-theme")}catch(e){return nu
 /* ---------- helpers ---------- */
 const $ = id => document.getElementById(id);
 function toast(m,k){ const t=document.createElement("div"); t.className="toast "+(k||""); t.textContent=m; $("toast").appendChild(t); setTimeout(()=>t.remove(),3000); }
-function modal(html){ $("modalBox").innerHTML=html; $("modalBg").classList.add("open"); }
-function closeModal(){ $("modalBg").classList.remove("open"); }
+function modal(html){ $("modalBox").classList.remove("wide"); $("modalBox").innerHTML=html; $("modalBg").classList.add("open"); }
+function modalWide(html){ $("modalBox").classList.add("wide"); $("modalBox").innerHTML=html; $("modalBg").classList.add("open"); }
+function closeModal(){ $("modalBg").classList.remove("open"); $("modalBox").classList.remove("wide"); }
 $("modalBg").addEventListener("click",e=>{ if(e.target.id==="modalBg") closeModal(); });
 const num = n => (n||0).toLocaleString("en-IN");
 const money = n => "₹"+num(Math.round(n||0));
@@ -156,7 +157,7 @@ function listingCard(s,kind){
     <div class="row" style="margin-top:10px;flex-wrap:wrap">
       <button class="mini" onclick="openListing('${kind}','${s.id}')">Edit</button>
       <button class="mini" onclick="toggleAvail('${kind}','${s.id}',${isStore?!s.isOpen:!s.available})">${isStore?(s.isOpen?"Mark closed":"Mark open"):(s.available?"Mark busy":"Mark available")}</button>
-      ${isStore?`<button class="mini" onclick="go('products')">Products</button>`:`<button class="mini" onclick="openOffering('${s.id}')">＋ Service price</button>`}
+      ${isStore?`<button class="mini" onclick="go('products')">Products</button>`:`<button class="mini" onclick="openCatalogBrowser('service','${s.id}')">＋ Add services</button>`}
       ${availTag}
     </div></div></div>`;
 }
@@ -295,7 +296,7 @@ function renderProducts(){
   if(!MY.stores.length){ $("view-products").innerHTML=`<h2 class="sec">Products</h2><div class="empty">Create a shop first.<br><button class="btn" style="margin-top:10px" onclick="openListing('store')">＋ Add shop</button></div>`; return; }
   const byStore=MY.stores.map(st=>{
     const ps=MY.products.filter(p=>p.storeId===st.id);
-    return `<h2 class="sec">${esc(st.name)} <button class="btn" onclick="openCatalogPick('${st.id}')">＋ Add from catalog</button></h2>
+    return `<h2 class="sec">${esc(st.name)} <button class="btn" onclick="openCatalogBrowser('product','${st.id}')">＋ Add products</button></h2>
       <div class="pgrid">${ps.map(p=>`<div class="card"><div class="ph">${img(p.imageUrl)}</div><div class="bd">
         <b>${esc(p.name)}</b>${p.unit?`<div class="crumb">${esc(p.unit)}</div>`:""}<div>${priceBlock(p.price,p.mrp)}</div>
         <div class="between" style="margin-top:6px">${p.approved?'<span class="tag ok">Live</span>':'<span class="tag wait">Pending</span>'} ${p.inStock?'<span class="tag info">In stock</span>':'<span class="tag no">Out</span>'}</div>
@@ -312,33 +313,63 @@ async function toggleStock(id,v){ try{ await db.collection("products").doc(id).u
 
 let catalogCache={product:null,service:null};
 async function loadCatalog(type){ if(catalogCache[type]) return catalogCache[type]; const s=await db.collection("catalog").where("type","==",type).get(); catalogCache[type]=s.docs.map(d=>({id:d.id,...d.data()})); return catalogCache[type]; }
-async function openCatalogPick(storeId){
-  modal(`<h3>Add from catalog</h3><input id="cp-q" placeholder="Search items…" oninput="filterCatalogPick()"><div id="cp-list" style="max-height:340px;overflow:auto;margin-top:10px"><div class="muted center">Loading…</div></div>
-    <div class="actions"><button class="ghost" onclick="closeModal()">Close</button></div>`);
-  const items=await loadCatalog("product"); window._cpStore=storeId; window._cpItems=items; renderCatalogPick(items);
+
+/* ===== Pro catalog browser (products + services) ===== */
+let CB={ mode:"product", ownerId:null, items:[], q:"", cat:"all" };
+async function openCatalogBrowser(mode, ownerId){
+  CB={ mode, ownerId, items:[], q:"", cat:"all" };
+  modalWide(`<h3>Add ${mode==="service"?"services":"products"} from catalog</h3>
+    <div class="crumb">Pick items, set your price, and add. Goes live after admin approval.</div>
+    <input id="cb-q" placeholder="Search ${mode==="service"?"services":"products"}…" oninput="CB.q=this.value.toLowerCase();renderCatBrowser()" style="margin-top:10px">
+    <div id="cb-chips" class="row" style="gap:6px;flex-wrap:wrap;margin:10px 0"></div>
+    <div id="cb-grid" class="catgrid"><div class="muted center" style="grid-column:1/-1;padding:30px">Loading…</div></div>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Done</button></div>`);
+  CB.items = await loadCatalog(mode);
+  renderCatBrowser();
 }
-function filterCatalogPick(){ const q=val("cp-q").toLowerCase(); renderCatalogPick((window._cpItems||[]).filter(i=>(i.name||"").toLowerCase().includes(q)||(i.category||"").includes(q))); }
-function renderCatalogPick(items){
-  $("cp-list").innerHTML=items.length?items.map(i=>`<div class="listrow">
-    ${img(i.imageUrl,"thumb")}<div style="flex:1"><b>${esc(i.name)}</b><div class="crumb">${catLabel(i.category)}${i.unit?" · "+esc(i.unit):""}${i.suggestedMrp?" · MRP "+money(i.suggestedMrp):""}</div></div>
-    <button class="btn" onclick='pickCatalog(${JSON.stringify(i).replace(/'/g,"&#39;")})'>Set price</button></div>`).join(""):'<div class="empty">No catalog items. Ask admin to add some.</div>';
+function cbAddedCatalogIds(){
+  if(CB.mode==="service") return new Set(MY.offerings.filter(o=>o.providerId===CB.ownerId).map(o=>o.catalogId));
+  return new Set(MY.products.filter(p=>p.storeId===CB.ownerId).map(p=>p.catalogId));
 }
-function pickCatalog(i){
-  modal(`<h3>Set your price</h3><p class="crumb">${esc(i.name)} · ${catLabel(i.category)}</p>
-    <label>MRP / original price (₹)</label><input id="pp-mrp" type="number" value="${i.suggestedMrp||""}" oninput="ppPreview()">
-    <label>Your selling price (₹)</label><input id="pp-price" type="number" oninput="ppPreview()">
-    <div id="pp-prev" class="save" style="margin-top:8px"></div>
-    <div class="banner warn" style="margin-top:10px"><span>⏳</span><div>Goes live after admin approval.</div></div>
-    <div class="actions"><button class="ghost" onclick="openCatalogPick(window._cpStore)">← Back</button><button class="btn" id="pp-save" onclick='savePrice(${JSON.stringify(i).replace(/'/g,"&#39;")})'>Add product</button></div>`);
+function renderCatBrowser(){
+  const cats=[...new Set(CB.items.map(i=>i.category).filter(Boolean))].sort();
+  const chips=$("cb-chips"); if(chips){
+    chips.innerHTML=[`<button class="${CB.cat==="all"?"btn":"btn alt"}" style="padding:6px 12px;font-size:12px" onclick="CB.cat='all';renderCatBrowser()">All</button>`]
+      .concat(cats.map(c=>`<button class="${CB.cat===c?"btn":"btn alt"}" style="padding:6px 12px;font-size:12px" onclick="CB.cat='${esc(c)}';renderCatBrowser()">${catLabel(c)}</button>`)).join("");
+  }
+  const added=cbAddedCatalogIds();
+  const list=CB.items.filter(i=>(CB.cat==="all"||i.category===CB.cat) && ((i.name||"")+" "+(i.category||"")).toLowerCase().includes(CB.q));
+  const grid=$("cb-grid"); if(!grid) return;
+  grid.innerHTML=list.length?list.map(i=>{
+    const isAdded=added.has(i.id);
+    return `<div class="catcard"><div class="cph">${img(i.imageUrl)}</div><div class="cbd">
+      <div class="nm">${esc(i.name)}</div>
+      <div class="crumb">${catLabel(i.category)}${i.unit?" · "+esc(i.unit):""}</div>
+      ${isAdded?`<span class="tag ok">✓ Added</span>`:`
+        <div class="pin"><input id="m-${i.id}" type="number" placeholder="MRP" value="${i.suggestedMrp||""}" oninput="cbPrev('${i.id}')">
+          <input id="p-${i.id}" type="number" placeholder="Your ₹" oninput="cbPrev('${i.id}')"></div>
+        <div class="save" id="s-${i.id}"></div>
+        <button class="addbtn" onclick="cbAdd('${i.id}')">＋ Add</button>`}
+    </div></div>`;
+  }).join(""):'<div class="empty" style="grid-column:1/-1">No items here. Ask admin to load the default catalog.</div>';
 }
-function ppPreview(){ const mrp=parseFloat(val("pp-mrp")||"0"),price=parseFloat(val("pp-price")||"0"); const el=$("pp-prev"); if(!el) return;
+function cbItem(id){ return CB.items.find(x=>x.id===id); }
+function cbPrev(id){ const mrp=parseFloat(val("m-"+id)||"0"),price=parseFloat(val("p-"+id)||"0"); const el=$("s-"+id); if(!el)return;
   if(mrp>price&&price>0){ const s=Math.round(mrp-price),p=Math.round((mrp-price)/mrp*100); el.textContent=`Customer saves ${money(s)} (${p}% off)`; } else el.textContent=""; }
-async function savePrice(i){
-  const mrp=parseFloat(val("pp-mrp")||"0")||0, price=parseFloat(val("pp-price")||"0")||0;
-  if(price<=0) return toast("Enter a selling price","bad");
-  const btn=$("pp-save"); if(btn){btn.disabled=true;btn.textContent="Adding…";}
-  try{ await db.collection("products").add({ storeId:window._cpStore, catalogId:i.id, name:i.name, category:i.category||"", imageUrl:i.imageUrl||"", unit:i.unit||"", price, mrp, inStock:true, approved:false });
-    toast("Added — pending approval","ok"); closeModal(); await loadAll(); renderProducts(); }catch(e){ toast("Failed: "+e.message,"bad"); if(btn){btn.disabled=false;btn.textContent="Add product";} }
+async function cbAdd(id){
+  const i=cbItem(id); if(!i) return;
+  let mrp=parseFloat(val("m-"+id)||"0")||0; let price=parseFloat(val("p-"+id)||"0")||0;
+  if(price<=0){ if(i.suggestedMrp){ price=i.suggestedMrp; mrp=mrp||i.suggestedMrp; } else return toast("Enter your price","bad"); }
+  if(!mrp) mrp=price;
+  try{
+    if(CB.mode==="service"){
+      await db.collection("serviceOfferings").add({ ownerUid:ME.uid, providerId:CB.ownerId, catalogId:i.id, name:i.name, category:i.category||"", imageUrl:i.imageUrl||"", price, mrp, approved:false });
+    }else{
+      await db.collection("products").add({ storeId:CB.ownerId, catalogId:i.id, name:i.name, category:i.category||"", imageUrl:i.imageUrl||"", unit:i.unit||"", price, mrp, inStock:true, approved:false });
+    }
+    toast(`Added ${i.name} — pending approval`,"ok");
+    await loadAll(); renderCatBrowser();   // refresh "Added" markers, keep browser open for more
+  }catch(e){ toast("Failed: "+e.message,"bad"); }
 }
 function editPrice(id){
   const p=MY.products.find(x=>x.id===id); if(!p) return;

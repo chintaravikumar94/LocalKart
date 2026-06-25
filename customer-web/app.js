@@ -240,7 +240,7 @@ function brandingHtml(brand){
 }
 function renderDetail(s,kind,extras){
   const isStore=kind==="store";
-  const head=brandingHtml(CUR&&CUR.brand)+`<div class="panel" style="padding:0;overflow:hidden">
+  const head=`<div class="panel" style="padding:0;overflow:hidden">
       <div class="hero">${s.photoUrl?`<img src="${esc(s.photoUrl)}" alt="">`:`<div class="hero-ph">🏬</div>`}</div>
       <div style="padding:16px">
         <div class="between"><h2 style="font-size:20px">${esc(s.name)}</h2>
@@ -264,7 +264,7 @@ function renderDetail(s,kind,extras){
     body=`<h2 class="sec">Services offered <span class="crumb">${extras.length}</span></h2>
       <div class="pgrid">${extras.map(o=>offeringTile(o,s)).join("")||emptyInline("Use “Book service” or “Request job” above.")}</div>`;
   }
-  $("view-detail").innerHTML=head+contactBlock(s)+body;
+  $("view-detail").innerHTML=head+contactBlock(s)+brandingHtml(CUR&&CUR.brand)+body;
 }
 function waLink(n){ let d=(n||"").replace(/\D/g,""); if(d.length===10) d="91"+d; return "https://wa.me/"+d; }
 // Per-field visibility: explicit flag if set, else fall back to legacy showContact.

@@ -255,6 +255,7 @@ function renderDetail(s,kind,extras){
   const availTxt=isStore?(s.isOpen?"Open now":"Closed"):(s.available?"Available":"Busy");
   const rate=(s.rating||0).toFixed(1), rc=s.ratingCount||0;
   const stat=(ic,v,l)=>`<div class="dstat"><div class="dstat-n">${ic} ${v}</div><div class="dstat-l">${l}</div></div>`;
+  const ac=avaColor(s.name);
   const back=`<button class="dback" onclick="go('${isStore?"stores":"services"}')">←</button>`;
   const head=`
     <div class="shop-hero">
@@ -264,7 +265,7 @@ function renderDetail(s,kind,extras){
       <span class="hero-pill ${availOk?"open":"closed"}">${availTxt}</span>
       <div class="shop-hero-cap">
         <div class="shop-hero-title">${esc(s.name)}</div>
-        <div class="shop-hero-sub">${catLabel(s.category)}${s.address?` · ${esc(s.address)}`:""}</div>
+        <div class="shop-hero-sub" style="background:linear-gradient(135deg,${ac[0]},${ac[1]})">${catLabel(s.category)}${s.address?` · ${esc(s.address)}`:""}</div>
       </div>
     </div>
     <div class="panel shop-card">

@@ -73,10 +73,30 @@ async function handleUser(u){
   if(BUSY) return;
   try{
     const snap=await db.collection("users").doc(u.uid).get();
-    if(snap.exists){ ME={uid:u.uid,...snap.data()}; startApp(); }
+    if(snap.exists){ ME={uid:u.uid,...snap.data()}; if(needsPassword()) showSetPassword(); else startApp(); }
     else showProfileSetup(u);
   }catch(e){ loginErr(e.message); }
 }
+function needsPassword(){ const u=auth.currentUser; return !!(u && u.email && !(u.providerData||[]).some(p=>p.providerId==="password")); }
+function showSetPassword(){
+  $("authBox").innerHTML=`
+    <div style="font-weight:800;font-size:17px">Set your password 🔒</div>
+    <div class="sub" style="margin:4px 0 16px">Set a password so you can also log in with your email (${esc(auth.currentUser?.email||"")}) next time.</div>
+    <input id="sp-pass" type="password" placeholder="New password (min 6 chars)">
+    <input id="sp-pass2" type="password" placeholder="Confirm password">
+    <button class="btn-primary" id="sp-save" onclick="setPasswordNow()">Set password & continue</button>
+    <div class="err" id="loginErr"></div>
+    <div class="center" style="margin-top:8px"><span class="link" onclick="skipPassword()">Skip for now</span></div>`;
+}
+async function setPasswordNow(){
+  const u=auth.currentUser; const p=$("sp-pass").value||"", p2=$("sp-pass2").value||"";
+  if(p.length<6) return loginErr("Password must be at least 6 characters.");
+  if(p!==p2) return loginErr("Passwords do not match.");
+  const btn=$("sp-save"); if(btn){ btn.disabled=true; btn.textContent="Saving…"; }
+  try{ await u.linkWithCredential(firebase.auth.EmailAuthProvider.credential(u.email,p)); toast("Password set ✅","ok"); startApp(); }
+  catch(e){ loginErr(e.message); if(btn){ btn.disabled=false; btn.textContent="Set password & continue"; } }
+}
+function skipPassword(){ startApp(); }
 function showProfileSetup(u){
   window._gu=u;
   const first=((u.displayName||u.email||"there").split(" ")[0]);

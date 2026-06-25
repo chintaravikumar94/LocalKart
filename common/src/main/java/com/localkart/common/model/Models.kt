@@ -32,6 +32,7 @@ data class Store(
     val ownerUid: String = "",
     val name: String = "",
     val category: String = "",        // groceries | mobile_repairing | fancy | net_center | meeseva | household
+    val shopType: String = "physical", // physical (storefront) | digital (online only) | hybrid (both)
     val description: String = "",
     val photoUrl: String = "",
     val rating: Double = 0.0,

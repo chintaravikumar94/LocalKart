@@ -152,7 +152,7 @@ function listingCard(s,kind){
     <div class="between"><b>${esc(s.name)}</b>${s.approved?'<span class="tag ok">Live</span>':'<span class="tag wait">Pending approval</span>'}</div>
     <div class="crumb" style="margin:4px 0">${catLabel(s.category)} · ★ ${(s.rating||0).toFixed(1)} (${s.ratingCount||0})</div>
     <div class="crumb">${esc(s.address||"")}</div>
-    <div style="margin-top:4px">${s.showContact?'<span class="tag ok">Contact shared</span>':'<span class="tag wait">Contact hidden</span>'}${s.location?' <span class="tag info">📍 Mapped</span>':''}${s.pincode?` <span class="tag info">PIN ${esc(s.pincode)}</span>`:''}${s.locationApprovalPending?' <span class="tag wait">Location pending</span>':''}</div>
+    <div style="margin-top:4px">${isStore?shopTypeBadge(s.shopType)+' ':''}${s.showContact?'<span class="tag ok">Contact shared</span>':'<span class="tag wait">Contact hidden</span>'}${s.location?' <span class="tag info">📍 Mapped</span>':''}${s.pincode?` <span class="tag info">PIN ${esc(s.pincode)}</span>`:''}${s.locationApprovalPending?' <span class="tag wait">Location pending</span>':''}</div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap">
       <button class="mini" onclick="openListing('${kind}','${s.id}')">Edit</button>
       <button class="mini" onclick="toggleAvail('${kind}','${s.id}',${isStore?!s.isOpen:!s.available})">${isStore?(s.isOpen?"Mark closed":"Mark open"):(s.available?"Mark busy":"Mark available")}</button>
@@ -183,6 +183,11 @@ function openListing(kind,id){
   const pinV=(s&&s.locationApprovalPending&&s.pendingPincode)?s.pendingPincode:(s?.pincode||"");
   modal(`<h3>${id?"Edit":"Add"} ${isStore?"shop":"service"}</h3>
     <label>${isStore?"Shop":"Business"} name</label><input id="l-name" value="${esc(s?.name)}">
+    ${isStore?`<label>Shop type</label><select id="l-shoptype">
+      ${opt("physical","🏬 Physical store — customers visit your shop",s?.shopType||"physical")}
+      ${opt("digital","💻 Online store — no shop, you sell / deliver online",s?.shopType||"physical")}
+      ${opt("hybrid","🏬💻 Store + Online — you have a shop and also serve online",s?.shopType||"physical")}
+    </select>`:""}
     <label>Category</label><select id="l-cat">${catOptions(isStore?"store":"service",s?.category)}</select>
     <label>Description</label><textarea id="l-desc" rows="2">${esc(s?.description)}</textarea>
     <label>Address / area</label><input id="l-addr" value="${esc(s?.address)}">
@@ -216,6 +221,7 @@ function openListing(kind,id){
 }
 // Per-field visibility default: explicit flag if set, else fall back to legacy showContact.
 function flagDefault(s,key){ return s && s[key]!==undefined ? !!s[key] : !!(s && s.showContact); }
+function shopTypeBadge(t){ t=t||"physical"; if(t==="digital") return '<span class="tag info">💻 Online store</span>'; if(t==="hybrid") return '<span class="tag info">🏬💻 Store + Online</span>'; return '<span class="tag ok">🏬 Physical store</span>'; }
 function toggleRow(id,label,on){
   return `<label class="switch"><input type="checkbox" id="${id}" ${on?"checked":""}><span class="track"></span><span>${label}</span></label>`;
 }
@@ -240,6 +246,7 @@ async function saveListing(){
       phone:val("l-phone"), whatsapp:val("l-wa"),
       showPhoto, showPhone, showWhatsapp, showLocation,
       showContact:(showPhoto||showPhone||showWhatsapp||showLocation)};
+    if(isStore) base.shopType=val("l-shoptype")||"physical";
     if(!isStore) base.pricePerVisit=parseFloat(val("l-ppv")||"0")||0;
     if(photoUrl) base.photoUrl=photoUrl;
     if(ownerPhotoUrl) base.ownerPhotoUrl=ownerPhotoUrl;

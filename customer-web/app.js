@@ -146,13 +146,15 @@ function emptyInline(t){ return `<div class="empty" style="grid-column:1/-1">${t
 function chipHtml(c,view){ const e=catEmoji(c.name); return `<div class="chip" onclick="go('${view}');setTimeout(()=>filterCat('${view}','${esc(c.name)}'),60)">
   <div class="ci">${c.iconUrl?`<img src="${esc(c.iconUrl)}">`:e}</div><small>${catLabel(c.name)}</small></div>`; }
 function catEmoji(n){ const m={groceries:"🛒",vegetables_fruits:"🥦",bakery:"🥖",sweets:"🍬",dairy:"🥛",meat_fish:"🍗",medical_pharmacy:"💊",mobile_repairing:"📱",electronics:"🔌",hardware:"🔩",stationery:"✏️",clothing:"👕",footwear:"👟",jewellery:"💍",furniture:"🪑",restaurant:"🍽️",household:"🧹",plumber:"🚰",electrician:"💡",carpenter:"🪚",painter:"🎨",mechanic:"🔧",ac_repair:"❄️",housekeeping:"🧽",cook:"👨‍🍳",salon_spa:"💇",tutor:"📚",photographer:"📷"}; return m[n]||"🏷️"; }
+function shopTypeBadge(t){ t=t||"physical"; if(t==="digital") return '<span class="tag info">💻 Online store</span>'; if(t==="hybrid") return '<span class="tag info">🏬💻 Store + Online</span>'; return '<span class="tag ok">🏬 Physical store</span>'; }
 function storeCardHtml(s,kind){
   const openTag = kind==="store" ? (s.isOpen?'<span class="pill open">Open</span>':'<span class="pill closed">Closed</span>') : (s.available?'<span class="pill open">Available</span>':'<span class="pill closed">Busy</span>');
   return `<div class="card" onclick="openDetail('${kind}','${s.id}')">
     <div class="ph">${img(s.photoUrl)}${openTag}</div>
     <div class="bd"><div class="nm">${esc(s.name)}</div>
       <div class="between"><span class="crumb">${catLabel(s.category)}</span><span class="rate">★ ${(s.rating||0).toFixed(1)}</span></div>
-      <div class="crumb" style="margin-top:3px">${esc(s.address||"")}${distLabel(s)}</div>
+      ${kind==="store"?`<div style="margin-top:5px">${shopTypeBadge(s.shopType)}</div>`:""}
+      <div class="crumb" style="margin-top:5px">${esc(s.address||"")}${distLabel(s)}</div>
     </div></div>`;
 }
 
@@ -219,6 +221,7 @@ function renderDetail(s,kind,extras){
         <div class="between"><h2 style="font-size:20px">${esc(s.name)}</h2>
           <span class="rate">★ ${(s.rating||0).toFixed(1)} <span class="crumb">(${s.ratingCount||0})</span></span></div>
         <div class="crumb" style="margin-top:4px">${catLabel(s.category)} · ${isStore?(s.isOpen?'<span class="tag ok">Open now</span>':'<span class="tag no">Closed</span>'):(s.available?'<span class="tag ok">Available</span>':'<span class="tag no">Busy</span>')}</div>
+        ${isStore?`<div style="margin-top:6px">${shopTypeBadge(s.shopType)}</div>`:""}
         <div class="crumb" style="margin-top:4px">${esc(s.address||"")}${distLabel(s)}</div>
         ${s.description?`<div style="margin-top:6px;font-size:14px">${esc(s.description)}</div>`:""}
       <div class="row" style="margin-top:12px;flex-wrap:wrap">

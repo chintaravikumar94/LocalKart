@@ -791,6 +791,29 @@ const DEFAULT_SERVICES = [
   { name: "Home Tuition", category: "tutor", unit: "per hour", mrp: 300 },
   { name: "Event Photography", category: "photographer", unit: "per day", mrp: 8000 }
 ];
+// Category → emoji, used to generate clean tile images for catalog items.
+const CAT_EMOJI = {
+  groceries:"🛒",kirana:"🛒",supermarket:"🏪",vegetables_fruits:"🥦",bakery:"🥖",sweets:"🍬",dairy:"🥛",meat_fish:"🍗",
+  medical_pharmacy:"💊",mobile_repairing:"📱",mobile_accessories:"🎧",electronics:"🔌",hardware:"🔩",stationery:"✏️",
+  fancy:"🎀",gifts:"🎁",clothing:"👕",footwear:"👟",jewellery:"💍",cosmetics:"💄",furniture:"🪑",net_center:"🖥️",
+  meeseva:"🏛️",xerox_printing:"🖨️",restaurant:"🍽️",tiffin_center:"🍱",household:"🧹",pet_supplies:"🐾",toys:"🧸",sports:"⚽",
+  plumber:"🚰",electrician:"💡",carpenter:"🪚",painter:"🎨",mason:"🧱",welder:"🔧",gardener:"🌿",mechanic:"🔧",
+  ac_repair:"❄️",appliance_repair:"🧰",pest_control:"🐜",housekeeping:"🧽",cook:"👨‍🍳",maid:"🧹",laundry:"🧺",car_wash:"🚗",
+  packers_movers:"📦",tutor:"📚",beautician:"💇",salon_spa:"💆",photographer:"📷",driver:"🚙",tailor:"🧵",
+  security_guard:"🛡️",cctv_installation:"📹",borewell:"🕳️"
+};
+// Build a self-contained SVG data-URI tile (gradient + emoji). No external hosting needed.
+function tileImg(emoji, c1, c2) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'>`
+    + `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${c1}'/><stop offset='1' stop-color='${c2}'/></linearGradient></defs>`
+    + `<rect width='240' height='240' rx='28' fill='url(#g)'/>`
+    + `<text x='120' y='158' font-size='120' text-anchor='middle' font-family='sans-serif'>${emoji}</text></svg>`;
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
+function catalogTile(category, type) {
+  const e = CAT_EMOJI[category] || (type === "service" ? "🛠️" : "🛍️");
+  return type === "service" ? tileImg(e, "#7C3AED", "#4c1d95") : tileImg(e, "#2563EB", "#1e3a8a");
+}
 async function seedDefaultCatalog(kind) {
   if (!LIVE) { toast("(demo) loaded", "ok"); return; }
   try {
@@ -799,7 +822,7 @@ async function seedDefaultCatalog(kind) {
     const add = (list, type) => list.forEach(it => {
       if (!have.has(it.name + "|" + type)) {
         batch.set(db.collection("catalog").doc(), {
-          name: it.name, type, category: it.category, imageUrl: "",
+          name: it.name, type, category: it.category, imageUrl: catalogTile(it.category, type),
           description: "", suggestedMrp: it.mrp || 0, unit: it.unit || ""
         });
         n++;
@@ -809,6 +832,18 @@ async function seedDefaultCatalog(kind) {
     if (kind !== "product") add(DEFAULT_SERVICES, "service");
     if (n) await batch.commit();
     toast(n ? `Added ${n} default catalog items` : "Already up to date", "ok"); await loadAll();
+  } catch (e) { toast("Failed: " + e.message, "bad"); }
+}
+// Give a clean tile image to any catalog item that has none (upgrades already-seeded items).
+async function fillCatalogImages() {
+  if (!LIVE) { toast("(demo)", "ok"); return; }
+  try {
+    const missing = (DATA.catalog || []).filter(c => !c.imageUrl);
+    if (!missing.length) return toast("All catalog items already have images", "ok");
+    let batch = db.batch();
+    missing.forEach(c => batch.update(db.collection("catalog").doc(c.id), { imageUrl: catalogTile(c.category, c.type) }));
+    await batch.commit();
+    toast(`Added images to ${missing.length} item(s)`, "ok"); await loadAll();
   } catch (e) { toast("Failed: " + e.message, "bad"); }
 }
 let editCatalogId = null;

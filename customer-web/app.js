@@ -222,20 +222,25 @@ function renderDetail(s,kind,extras){
   $("view-detail").innerHTML=head+contactBlock(s)+body;
 }
 function waLink(n){ let d=(n||"").replace(/\D/g,""); if(d.length===10) d="91"+d; return "https://wa.me/"+d; }
+// Per-field visibility: explicit flag if set, else fall back to legacy showContact.
+function cflag(s,key){ return s[key]!==undefined ? !!s[key] : !!s.showContact; }
 function contactBlock(s){
-  if(!s.showContact) return "";
   const phone=(s.phone||"").trim(), wa=(s.whatsapp||"").trim(), g=geo(s);
+  const showPhoto=cflag(s,"showPhoto")&&!!s.ownerPhotoUrl;
+  const showPhone=cflag(s,"showPhone")&&!!phone;
+  const showWa=cflag(s,"showWhatsapp")&&!!wa;
+  const showLoc=cflag(s,"showLocation")&&!!g;
+  if(!showPhoto&&!showPhone&&!showWa&&!showLoc) return "";
   let btns="";
-  if(phone) btns+=`<a class="ghost" href="tel:${esc(phone)}">📞 Call</a>`;
-  if(wa) btns+=`<a class="ghost" href="${waLink(wa)}" target="_blank" rel="noopener">🟢 WhatsApp</a>`;
-  if(g) btns+=`<a class="ghost" href="https://www.google.com/maps/search/?api=1&query=${g.lat},${g.lng}" target="_blank" rel="noopener">🗺️ Directions</a>`;
-  if(!btns && !s.ownerPhotoUrl) return "";
-  const sub=[phone?esc(phone):"", (wa&&wa!==phone)?"WhatsApp: "+esc(wa):""].filter(Boolean).join(" · ");
+  if(showPhone) btns+=`<a class="ghost" href="tel:${esc(phone)}">📞 Call</a>`;
+  if(showWa) btns+=`<a class="ghost" href="${waLink(wa)}" target="_blank" rel="noopener">🟢 WhatsApp</a>`;
+  if(showLoc) btns+=`<a class="ghost" href="https://www.google.com/maps/search/?api=1&query=${g.lat},${g.lng}" target="_blank" rel="noopener">🗺️ Directions</a>`;
+  const sub=[showPhone?esc(phone):"", (showWa&&wa!==phone)?"WhatsApp: "+esc(wa):""].filter(Boolean).join(" · ");
   return `<div class="panel"><div class="row">
-      ${s.ownerPhotoUrl?`<img src="${esc(s.ownerPhotoUrl)}" style="width:58px;height:58px;border-radius:50%;object-fit:cover">`:`<div style="width:58px;height:58px;border-radius:50%;background:var(--card-2);display:grid;place-items:center;font-size:24px">👤</div>`}
+      ${showPhoto?`<img src="${esc(s.ownerPhotoUrl)}" style="width:58px;height:58px;border-radius:50%;object-fit:cover">`:`<div style="width:58px;height:58px;border-radius:50%;background:var(--card-2);display:grid;place-items:center;font-size:24px">👤</div>`}
       <div style="flex:1"><b>Contact the owner</b>${sub?`<div class="crumb" style="margin-top:2px">${sub}</div>`:""}</div>
     </div>
-    <div class="row" style="margin-top:10px;flex-wrap:wrap">${btns}</div></div>`;
+    ${btns?`<div class="row" style="margin-top:10px;flex-wrap:wrap">${btns}</div>`:""}</div>`;
 }
 function priceBlock(price,mrp){
   let h=`<div><span class="price">${money(price)}</span>${mrp>price?`<span class="mrp">${money(mrp)}</span>`:""}</div>`;

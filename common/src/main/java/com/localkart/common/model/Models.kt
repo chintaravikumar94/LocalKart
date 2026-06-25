@@ -40,11 +40,15 @@ data class Store(
     val address: String = "",
     val isOpen: Boolean = true,
     val approved: Boolean = false,
-    // Owner contact (shown to customers only when showContact = true)
+    // Owner contact (each field shown to customers only when its toggle is on)
     val phone: String = "",
     val whatsapp: String = "",
     val ownerPhotoUrl: String = "",
-    val showContact: Boolean = false,
+    val showContact: Boolean = false,   // legacy master toggle (any field on)
+    val showPhone: Boolean = false,
+    val showWhatsapp: Boolean = false,
+    val showPhoto: Boolean = false,
+    val showLocation: Boolean = false,
     val createdAt: Timestamp = Timestamp.now()
 )
 
@@ -63,11 +67,15 @@ data class ServiceProvider(
     val location: GeoPoint? = null,
     val address: String = "",
     val pricePerVisit: Double = 0.0,
-    // Owner contact (shown to customers only when showContact = true)
+    // Owner contact (each field shown to customers only when its toggle is on)
     val phone: String = "",
     val whatsapp: String = "",
     val ownerPhotoUrl: String = "",
-    val showContact: Boolean = false,
+    val showContact: Boolean = false,   // legacy master toggle (any field on)
+    val showPhone: Boolean = false,
+    val showWhatsapp: Boolean = false,
+    val showPhoto: Boolean = false,
+    val showLocation: Boolean = false,
     val createdAt: Timestamp = Timestamp.now()
 )
 

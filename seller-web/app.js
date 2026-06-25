@@ -187,16 +187,28 @@ function openListing(kind,id){
     <label>Shop / cover photo ${id?"(leave empty to keep)":""}</label><input id="l-file" type="file" accept="image/*" onchange="previewFile('l-file','l-prev')">
     <img id="l-prev" src="${s?.photoUrl||""}" style="display:${s?.photoUrl?"block":"none"};width:100%;height:120px;object-fit:cover;border-radius:12px;margin-top:8px">
 
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)"><b>Owner contact</b></div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)"><b>Owner contact</b><div class="crumb">Turn on each item you want customers to see.</div></div>
+
     <label>Owner photo (optional)</label><input id="l-ownerfile" type="file" accept="image/*" onchange="previewFile('l-ownerfile','l-ownerprev')">
     <img id="l-ownerprev" src="${s?.ownerPhotoUrl||""}" style="display:${s?.ownerPhotoUrl?"block":"none"};width:72px;height:72px;border-radius:50%;object-fit:cover;margin-top:8px">
+    ${toggleRow("l-showphoto","Show photo to customers",flagDefault(s,"showPhoto"))}
+
     <label>Phone number</label><input id="l-phone" value="${esc(s?.phone)}" placeholder="10-digit mobile">
+    ${toggleRow("l-showphone","Show phone to customers",flagDefault(s,"showPhone"))}
+
     <label>WhatsApp number</label><input id="l-wa" value="${esc(s?.whatsapp)}" placeholder="WhatsApp number (with country code if outside India)">
+    ${toggleRow("l-showwa","Show WhatsApp to customers",flagDefault(s,"showWhatsapp"))}
+
     <label>Shop GPS location</label>
     <div class="row"><button class="ghost" type="button" onclick="captureLoc()">📍 Use current location</button><span class="crumb" id="l-loclabel">${locTxt}</span></div>
-    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer"><input type="checkbox" id="l-showcontact" ${s?.showContact?"checked":""} style="width:auto"> Show my photo, phone, WhatsApp & map location to customers</label>
+    ${toggleRow("l-showloc","Show map location to customers",flagDefault(s,"showLocation"))}
 
     <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button><button class="btn" id="l-save" onclick="saveListing()">Save</button></div>`);
+}
+// Per-field visibility default: explicit flag if set, else fall back to legacy showContact.
+function flagDefault(s,key){ return s && s[key]!==undefined ? !!s[key] : !!(s && s.showContact); }
+function toggleRow(id,label,on){
+  return `<label class="switch"><input type="checkbox" id="${id}" ${on?"checked":""}><span class="track"></span><span>${label}</span></label>`;
 }
 let pendingLoc=null;
 function captureLoc(){
@@ -212,8 +224,12 @@ async function saveListing(){
   try{
     const photoUrl=await uploadImage("l-file",isStore?"stores":"services");
     const ownerPhotoUrl=await uploadImage("l-ownerfile","ownerPhotos");
+    const showPhoto=$("l-showphoto")?.checked||false, showPhone=$("l-showphone")?.checked||false,
+          showWhatsapp=$("l-showwa")?.checked||false, showLocation=$("l-showloc")?.checked||false;
     const base={name,category:val("l-cat"),description:val("l-desc"),address:val("l-addr"),ownerUid:ME.uid,
-      phone:val("l-phone"), whatsapp:val("l-wa"), showContact:$("l-showcontact")?.checked||false};
+      phone:val("l-phone"), whatsapp:val("l-wa"),
+      showPhoto, showPhone, showWhatsapp, showLocation,
+      showContact:(showPhoto||showPhone||showWhatsapp||showLocation)};
     if(!isStore) base.pricePerVisit=parseFloat(val("l-ppv")||"0")||0;
     if(photoUrl) base.photoUrl=photoUrl;
     if(ownerPhotoUrl) base.ownerPhotoUrl=ownerPhotoUrl;

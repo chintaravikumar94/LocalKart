@@ -145,7 +145,10 @@ function renderHome(){
 function emptyInline(t){ return `<div class="empty" style="grid-column:1/-1">${t}</div>`; }
 function chipHtml(c,view){ const e=catEmoji(c.name); return `<div class="chip" onclick="go('${view}');setTimeout(()=>filterCat('${view}','${esc(c.name)}'),60)">
   <div class="ci">${c.iconUrl?`<img src="${esc(c.iconUrl)}">`:e}</div><small>${catLabel(c.name)}</small></div>`; }
-function catEmoji(n){ const m={groceries:"🛒",vegetables_fruits:"🥦",bakery:"🥖",sweets:"🍬",dairy:"🥛",meat_fish:"🍗",medical_pharmacy:"💊",mobile_repairing:"📱",electronics:"🔌",hardware:"🔩",stationery:"✏️",clothing:"👕",footwear:"👟",jewellery:"💍",furniture:"🪑",restaurant:"🍽️",household:"🧹",plumber:"🚰",electrician:"💡",carpenter:"🪚",painter:"🎨",mechanic:"🔧",ac_repair:"❄️",housekeeping:"🧽",cook:"👨‍🍳",salon_spa:"💇",tutor:"📚",photographer:"📷"}; return m[n]||"🏷️"; }
+function catEmoji(n){ const m={groceries:"🛒",kirana:"🛒",supermarket:"🏪",vegetables_fruits:"🥦",bakery:"🥖",sweets:"🍬",dairy:"🥛",meat_fish:"🍗",medical_pharmacy:"💊",mobile_repairing:"📱",mobile_accessories:"🎧",electronics:"🔌",hardware:"🔩",stationery:"✏️",fancy:"🎀",gifts:"🎁",clothing:"👕",footwear:"👟",jewellery:"💍",cosmetics:"💄",furniture:"🪑",net_center:"🖥️",meeseva:"🏛️",xerox_printing:"🖨️",restaurant:"🍽️",tiffin_center:"🍱",household:"🧹",pet_supplies:"🐾",toys:"🧸",sports:"⚽",plumber:"🚰",electrician:"💡",carpenter:"🪚",painter:"🎨",mason:"🧱",welder:"🔧",gardener:"🌿",mechanic:"🔧",ac_repair:"❄️",appliance_repair:"🧰",pest_control:"🐜",housekeeping:"🧽",cook:"👨‍🍳",maid:"🧹",laundry:"🧺",car_wash:"🚗",packers_movers:"📦",tutor:"📚",beautician:"💇",salon_spa:"💆",photographer:"📷",driver:"🚙",tailor:"🧵",security_guard:"🛡️",cctv_installation:"📹",borewell:"🕳️"}; return m[n]||"🏷️"; }
+// Self-contained SVG tile (gradient + category emoji) — fallback when an item has no photo.
+function tileImg(e,c1,c2){ const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${c1}'/><stop offset='1' stop-color='${c2}'/></linearGradient></defs><rect width='240' height='240' fill='url(#g)'/><text x='120' y='158' font-size='120' text-anchor='middle' font-family='sans-serif'>${e}</text></svg>`; return "data:image/svg+xml,"+encodeURIComponent(svg); }
+function catTile(cat,type){ const e=catEmoji(cat); return type==="service"?tileImg(e,"#7C3AED","#4c1d95"):tileImg(e,"#2563EB","#1e3a8a"); }
 function shopTypeBadge(t){ t=t||"physical"; if(t==="digital") return '<span class="tag info">💻 Online store</span>'; if(t==="hybrid") return '<span class="tag info">🏬💻 Store + Online</span>'; return '<span class="tag ok">🏬 Physical store</span>'; }
 function fulfilBadges(s){ let h=""; if(s.doorDelivery) h+=' <span class="tag info">🚚 Door delivery</span>'; if(s.pickup) h+=' <span class="tag info">🛍️ Pickup</span>'; return h; }
 function storeCardHtml(s,kind){
@@ -270,7 +273,7 @@ function priceBlock(price,mrp){
 }
 function productTile(p,store){
   const inCart=CART.find(x=>x.productId===p.id);
-  return `<div class="ptile"><div class="ph">${img(p.imageUrl)}</div><div class="bd">
+  return `<div class="ptile"><div class="ph">${img(p.imageUrl||catTile(p.category,"product"))}</div><div class="bd">
     <div class="nm">${esc(p.name)}</div>${p.unit?`<div class="crumb">${esc(p.unit)}</div>`:""}
     ${priceBlock(p.price,p.mrp)}
     ${!p.inStock?`<button class="addbtn" disabled>Out of stock</button>`
@@ -278,7 +281,7 @@ function productTile(p,store){
   </div></div>`;
 }
 function offeringTile(o,prov){
-  return `<div class="ptile"><div class="ph">${img(o.imageUrl)}</div><div class="bd">
+  return `<div class="ptile"><div class="ph">${img(o.imageUrl||catTile(o.category,"service"))}</div><div class="bd">
     <div class="nm">${esc(o.name)}</div>${priceBlock(o.price,o.mrp)}
     <button class="addbtn" onclick="openBooking('${esc(o.name)}')">Book this</button></div></div>`;
 }

@@ -170,7 +170,7 @@ function renderServices(){
   $("view-services").innerHTML=`<h2 class="sec">My Services <button class="btn" onclick="openListing('service')">＋ Add service</button></h2>
     ${billBanner()}
     <div class="grid">${MY.services.map(s=>listingCard(s,"service")).join("")||'<div class="empty" style="grid-column:1/-1">No service profile yet. Click “Add service”.</div>'}</div>
-    ${MY.offerings.length?`<h2 class="sec">My service prices</h2><div class="pgrid">${MY.offerings.map(o=>`<div class="card"><div class="ph">${img(o.imageUrl)}</div><div class="bd"><b>${esc(o.name)}</b><div>${priceBlock(o.price,o.mrp)}</div>${o.approved?'<span class="tag ok">Live</span>':'<span class="tag wait">Pending</span>'} <button class="reject" onclick="delDoc('serviceOfferings','${o.id}')">Delete</button></div></div>`).join("")}</div>`:""}`;
+    ${MY.offerings.length?`<h2 class="sec">My service prices</h2><div class="pgrid">${MY.offerings.map(o=>`<div class="card"><div class="ph">${img(o.imageUrl||catTile(o.category,"service"))}</div><div class="bd"><b>${esc(o.name)}</b><div>${priceBlock(o.price,o.mrp)}</div>${o.approved?'<span class="tag ok">Live</span>':'<span class="tag wait">Pending</span>'} <button class="reject" onclick="delDoc('serviceOfferings','${o.id}')">Delete</button></div></div>`).join("")}</div>`:""}`;
 }
 let editListingId=null,editListingKind=null;
 function openListing(kind,id){
@@ -227,6 +227,10 @@ function openListing(kind,id){
 function flagDefault(s,key){ return s && s[key]!==undefined ? !!s[key] : !!(s && s.showContact); }
 function shopTypeBadge(t){ t=t||"physical"; if(t==="digital") return '<span class="tag info">💻 Online store</span>'; if(t==="hybrid") return '<span class="tag info">🏬💻 Store + Online</span>'; return '<span class="tag ok">🏬 Physical store</span>'; }
 function fulfilBadges(s){ let h=""; if(s.doorDelivery) h+=' <span class="tag info">🚚 Delivery</span>'; if(s.pickup) h+=' <span class="tag info">🛍️ Pickup</span>'; return h; }
+// Self-contained SVG tile (gradient + category emoji) — fallback when an item has no photo.
+const SCAT_EMOJI={groceries:"🛒",kirana:"🛒",supermarket:"🏪",vegetables_fruits:"🥦",bakery:"🥖",sweets:"🍬",dairy:"🥛",meat_fish:"🍗",medical_pharmacy:"💊",mobile_repairing:"📱",mobile_accessories:"🎧",electronics:"🔌",hardware:"🔩",stationery:"✏️",fancy:"🎀",gifts:"🎁",clothing:"👕",footwear:"👟",jewellery:"💍",cosmetics:"💄",furniture:"🪑",net_center:"🖥️",meeseva:"🏛️",xerox_printing:"🖨️",restaurant:"🍽️",tiffin_center:"🍱",household:"🧹",pet_supplies:"🐾",toys:"🧸",sports:"⚽",plumber:"🚰",electrician:"💡",carpenter:"🪚",painter:"🎨",mason:"🧱",welder:"🔧",gardener:"🌿",mechanic:"🔧",ac_repair:"❄️",appliance_repair:"🧰",pest_control:"🐜",housekeeping:"🧽",cook:"👨‍🍳",maid:"🧹",laundry:"🧺",car_wash:"🚗",packers_movers:"📦",tutor:"📚",beautician:"💇",salon_spa:"💆",photographer:"📷",driver:"🚙",tailor:"🧵",security_guard:"🛡️",cctv_installation:"📹",borewell:"🕳️"};
+function tileImg(e,c1,c2){ const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${c1}'/><stop offset='1' stop-color='${c2}'/></linearGradient></defs><rect width='240' height='240' fill='url(#g)'/><text x='120' y='158' font-size='120' text-anchor='middle' font-family='sans-serif'>${e}</text></svg>`; return "data:image/svg+xml,"+encodeURIComponent(svg); }
+function catTile(cat,type){ const e=SCAT_EMOJI[cat]||(type==="service"?"🛠️":"🛍️"); return type==="service"?tileImg(e,"#7C3AED","#4c1d95"):tileImg(e,"#2563EB","#1e3a8a"); }
 function toggleRow(id,label,on){
   return `<label class="switch"><input type="checkbox" id="${id}" ${on?"checked":""}><span class="track"></span><span>${label}</span></label>`;
 }
@@ -297,7 +301,7 @@ function renderProducts(){
   const byStore=MY.stores.map(st=>{
     const ps=MY.products.filter(p=>p.storeId===st.id);
     return `<h2 class="sec">${esc(st.name)} <button class="btn" onclick="openCatalogBrowser('product','${st.id}')">＋ Add products</button></h2>
-      <div class="pgrid">${ps.map(p=>`<div class="card"><div class="ph">${img(p.imageUrl)}</div><div class="bd">
+      <div class="pgrid">${ps.map(p=>`<div class="card"><div class="ph">${img(p.imageUrl||catTile(p.category,"product"))}</div><div class="bd">
         <b>${esc(p.name)}</b>${p.unit?`<div class="crumb">${esc(p.unit)}</div>`:""}<div>${priceBlock(p.price,p.mrp)}</div>
         <div class="between" style="margin-top:6px">${p.approved?'<span class="tag ok">Live</span>':'<span class="tag wait">Pending</span>'} ${p.inStock?'<span class="tag info">In stock</span>':'<span class="tag no">Out</span>'}</div>
         <div class="row" style="margin-top:8px;flex-wrap:wrap">
@@ -342,7 +346,7 @@ function renderCatBrowser(){
   const grid=$("cb-grid"); if(!grid) return;
   grid.innerHTML=list.length?list.map(i=>{
     const isAdded=added.has(i.id);
-    return `<div class="catcard"><div class="cph">${img(i.imageUrl)}</div><div class="cbd">
+    return `<div class="catcard"><div class="cph">${img(i.imageUrl||catTile(i.category,CB.mode))}</div><div class="cbd">
       <div class="nm">${esc(i.name)}</div>
       <div class="crumb">${catLabel(i.category)}${i.unit?" · "+esc(i.unit):""}</div>
       ${isAdded?`<span class="tag ok">✓ Added</span>`:`
@@ -362,10 +366,11 @@ async function cbAdd(id){
   if(price<=0){ if(i.suggestedMrp){ price=i.suggestedMrp; mrp=mrp||i.suggestedMrp; } else return toast("Enter your price","bad"); }
   if(!mrp) mrp=price;
   try{
+    const itImg=i.imageUrl||catTile(i.category,CB.mode);
     if(CB.mode==="service"){
-      await db.collection("serviceOfferings").add({ ownerUid:ME.uid, providerId:CB.ownerId, catalogId:i.id, name:i.name, category:i.category||"", imageUrl:i.imageUrl||"", price, mrp, approved:false });
+      await db.collection("serviceOfferings").add({ ownerUid:ME.uid, providerId:CB.ownerId, catalogId:i.id, name:i.name, category:i.category||"", imageUrl:itImg, price, mrp, approved:false });
     }else{
-      await db.collection("products").add({ storeId:CB.ownerId, catalogId:i.id, name:i.name, category:i.category||"", imageUrl:i.imageUrl||"", unit:i.unit||"", price, mrp, inStock:true, approved:false });
+      await db.collection("products").add({ storeId:CB.ownerId, catalogId:i.id, name:i.name, category:i.category||"", imageUrl:itImg, unit:i.unit||"", price, mrp, inStock:true, approved:false });
     }
     toast(`Added ${i.name} — pending approval`,"ok");
     await loadAll(); renderCatBrowser();   // refresh "Added" markers, keep browser open for more

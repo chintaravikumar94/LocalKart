@@ -86,6 +86,8 @@
   .radbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 14px}
   .radchip{background:var(--card);color:var(--muted);border:1px solid var(--line);padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:var(--elev)}
   .radchip.on{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-color:transparent}
+  .cartbar{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;max-width:1140px;width:calc(100% - 40px);background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-radius:16px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 12px 34px var(--shadow);cursor:pointer;z-index:40;font-size:15px;font-weight:600}
+  .cartbar-go{font-weight:800;white-space:nowrap}
 
   /* cards grid */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
@@ -261,6 +263,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<script src="app.js?v=18"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

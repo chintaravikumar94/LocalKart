@@ -181,13 +181,22 @@ function renderDashboard(){
       ${kpi("🏪",num(MY.stores.length+MY.services.length),"Listings")}
     </div>
     ${pendingProducts?`<div class="banner warn"><span>⏳</span><div>${pendingProducts} item(s) waiting for admin approval before customers can see them.</div></div>`:""}
+    ${(MY.stores.length+MY.services.length)===0?`<div class="panel" style="text-align:center;padding:26px">
+        <div style="font-size:40px">🏪</div>
+        <b style="font-size:17px">Let's get you started</b>
+        <div class="crumb" style="margin:6px 0 14px">Create your shop or service so customers can find you.</div>
+        <div class="row" style="justify-content:center;flex-wrap:wrap">
+          <button class="btn" onclick="openListing('store')">＋ Add shop</button>
+          <button class="btn" onclick="openListing('service')">＋ Add service</button>
+        </div></div>`:""}
     <h2 class="sec">Quick actions</h2>
     <div class="row" style="flex-wrap:wrap">
-      <button class="btn" onclick="openListing('store')">＋ Add shop</button>
-      <button class="btn" onclick="openListing('service')">＋ Add service</button>
-      <button class="ghost" onclick="go('products')">📦 Manage products</button>
+      <button class="btn" onclick="go('shop')">🏪 My Shop</button>
+      <button class="btn" onclick="go('services')">🔧 My Services</button>
+      <button class="ghost" onclick="go('products')">📦 Products</button>
       <button class="ghost" onclick="go('orders')">🧾 Orders (${MY.orders.length})</button>
       <button class="ghost" onclick="go('bookings')">📅 Bookings (${MY.bookings.length+MY.requests.length+MY.appointments.length})</button>
+      <button class="ghost" onclick="go('branding')">🎨 Branding</button>
     </div>
     <h2 class="sec">Recent orders</h2>
     <div class="panel">${MY.orders.slice().sort((a,b)=>tsMs(b.createdAt)-tsMs(a.createdAt)).slice(0,5).map(orderRow).join("")||'<div class="empty">No orders yet.</div>'}</div>`;

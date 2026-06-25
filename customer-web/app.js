@@ -101,6 +101,7 @@ function go(view){
   if(view!=="home") stopCarousel();   // stop banner auto-rotate when leaving Home
   window.scrollTo(0,0);
   ({home:renderHome,stores:renderStores,services:renderServices,cart:renderCart,orders:renderOrders,bookings:renderBookings,chat:renderChat,notifications:renderNotifications,account:renderAccount}[view]||(()=>{}))();
+  cartBar();
 }
 
 /* ---------- data ---------- */
@@ -342,7 +343,17 @@ function qtyControl(pid){ const it=CART.find(x=>x.productId===pid); const q=it?i
 
 /* ---------- cart ---------- */
 function saveCart(){ try{localStorage.setItem("lk-cart",JSON.stringify(CART));}catch(e){} cartBadge(); }
-function cartBadge(){ const n=CART.reduce((s,i)=>s+i.qty,0); const b=$("cartBadge"); b.style.display=n?"grid":"none"; b.textContent=n; }
+function cartBadge(){ const n=CART.reduce((s,i)=>s+i.qty,0); const b=$("cartBadge"); b.style.display=n?"grid":"none"; b.textContent=n; cartBar(); }
+// Floating "view cart" bar — quick path to checkout from anywhere (hidden on the cart page).
+function cartBar(){
+  const n=CART.reduce((s,i)=>s+i.qty,0);
+  const onCart=$("view-cart")?.classList.contains("active");
+  let el=$("cartBar");
+  if(!n||onCart){ if(el) el.remove(); return; }
+  const total=CART.reduce((s,i)=>s+i.price*i.qty,0);
+  if(!el){ el=document.createElement("div"); el.id="cartBar"; el.className="cartbar"; el.onclick=()=>go("cart"); document.body.appendChild(el); }
+  el.innerHTML=`<span>🛒 ${n} item${n===1?"":"s"} · <b>${money(total)}</b></span><span class="cartbar-go">View cart →</span>`;
+}
 function addToCart(p){
   if(CART.length && CART[0].storeId!==p.storeId){ if(!confirm("Your cart has items from another store. Clear it and add this?")) return; CART=[]; }
   CART.push({productId:p.id,name:p.name,imageUrl:p.imageUrl,price:p.price,qty:1,storeId:p.storeId,storeName:p.storeName});
